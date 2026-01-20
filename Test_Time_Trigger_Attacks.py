@@ -519,7 +519,7 @@ def print_results_mean_standard_error(num_on_policy_rollouts,
 
 if __name__ == '__main__':
       agent = PolicyNetwork()
-  
+      agent.load_state_dict(torch.load(red_BC_policy_path, weights_only=True))
       curr_dir = create_exp_dir(attack_budget=attack_budget, entropy_threshold=entropy_threshold, seed=seed,
                                 num_onpolicy_rollouts=num_onpolicy_rollouts, )
 
@@ -538,8 +538,8 @@ if __name__ == '__main__':
                    red_entropy_episode_seed_dict)
 
       gaussian_agent = PolicyNetwork()
-      gaussian_agent.load_state_dict(torch.load(better_gaussian_model_path, weights_only=True))
-      # gaussian_agent.load_state_dict(torch.load(gaussian_model_path, weights_only=True))
+      gaussian_agent.load_state_dict(torch.load(gaussian_BC_policy_path, weights_only=True))
+     
 
       gaussian_random_attack_reward_dict, gaussian_random_attack_count_total_states_dict, gaussian_random_attack_count_attacked_state_dict, gaussian_random_attack_attacked_state_idx_dict, gaussian_random_epsiode_seed_dict = final_correct_seeded_gaussian_random_attack_with_budget_fixed_len_changed_random_sampling(
           gaussian_agent, num_onpolicy_rollouts=num_onpolicy_rollouts, budget=attack_budget,
