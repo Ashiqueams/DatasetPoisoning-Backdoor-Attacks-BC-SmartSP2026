@@ -569,8 +569,10 @@ if __name__ == '__main__':
           fixed_rollout_len=max_rollout_len)
       save_results_Unattacked(curr_dir, "red", red_Unattack_reward_dict,
                               red_Unattack_count_total_states_dict, red_Unattack_epsiode_seed_dict)
+      print_results_mean_standard_error(
+          num_onpolicy_rollouts,
+          red_Unattack_reward_dict, entropy_attack_reward_dict, random_attack_reward_dict,
+          gaussian_Unattack_reward_dict, gaussian_entropy_attack_reward_dict, gaussian_random_attack_reward_dict,
+          attack_budget=attack_budget, entropy_threshold=entropy_threshold
+      )
 
-      print_results_mean_standard_error(num_onpolicy_rollouts, unattacked_red_reward_dict, entropy_red_reward_dict,
-                                        random_red_reward_dict, unattacked_gaussian_reward_dict,
-                                        entropy_gaussian_reward_dict, random_gaussian_reward_dict,
-                                        attack_budget=attack_budget, entropy_threshold=entropy_threshold)
