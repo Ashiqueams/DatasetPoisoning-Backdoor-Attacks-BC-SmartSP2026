@@ -23,10 +23,15 @@ Run the following command ,
 $ python3 poison_data.py
 ```
 Note: The function add_trojan in poison_data.py defines the type of patch-by default it generates data posioned with Gaussian Patch . To generate poisoned data using red patch -uncomment line 31 and comment line 34. 
-## To train BC model ##
+## To train BC model on poisoned datasets ##
 ```console
 $ python3 train.py
 ```
+## To Evaluate the Backdoor Control Accuracy of the learned BC models ##
+```console
+$ python3 eval.py
+```
+
 ## To reproduce our results for Test Time Trigger Attacks ##
 ```console
 $ python3 Test_Time_Trigger_Attacks.py
