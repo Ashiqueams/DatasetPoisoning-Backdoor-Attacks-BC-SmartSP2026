@@ -10,6 +10,7 @@ from stable_baselines3.common.utils import set_random_seed
 from policynetwork import PolicyNetwork
 from torch.distributions import Categorical
 import argparse
+import time
 
 parser = argparse.ArgumentParser()
 
@@ -17,6 +18,7 @@ parser.add_argument('--seed', default=0, help="Seed for experiments")
 parser.add_argument('--max_rollout_len', default=1000, help="max length of each rolloutfor test time attack")
 parser.add_argument('--num_rollouts',default=100,help="number of rollouts to run test time attacks")
 parser.add_argument('--attack_budget',default=100,help="budget,aka no of test time attacks allowed in a single rollout b")
+parser.add_argument('--entropy_threshold', type=float, default=0.5, help="entropy threshold for entropy-based attacks")
 parser.add_argument('--attack_types_ls', nargs='+',default=["red_random","red_entropy","gaussian_random","gaussian_entropy","unattacked_poisoned_red","unattacked_poison_gaussian"],help="which attacks and unattacked evals on BC models trained on poisoned datasets to run")
 parser.add_argument('--base_save_model_dir', default="TTT_attacks/", help="where to save trained model")
 parser.add_argument('--red_BC_policy_path', default="saved_models/",
@@ -28,8 +30,9 @@ parser.add_argument('--gaussian_BC_policy_path', default="saved_models/",
 args = parser.parse_args()
 seed = int(args.seed)
 max_rollout_len=int(args.max_rollout_len)
-num_rollouts=int(args.num_rollouts)
+num_onpolicy_rollouts=int(args.num_rollouts)
 attack_budget=int(args.attack_budget)
+entropy_threshold = args.entropy_threshold
 attack_types_ls=args.attack_types_ls
 base_save_model_dir = args.save_model_dir
 red_BC_policy_path = args.red_BC_policy_path
@@ -472,59 +475,59 @@ def create_exp_dir(attack_budget, entropy_threshold, seed,num_onpolicy_rollouts,
     return curr_dir_path
 
 if __name__ == '__main__':
-    agent = PolicyNetwork()
-    if run_attack:
-        curr_dir = create_exp_dir(attack_budget=attack_budget, entropy_threshold=entropy_threshold, seed=seed,
-                                  num_onpolicy_rollouts=num_onpolicy_rollouts, )
+      agent = PolicyNetwork()
+  
+      curr_dir = create_exp_dir(attack_budget=attack_budget, entropy_threshold=entropy_threshold, seed=seed,
+                                num_onpolicy_rollouts=num_onpolicy_rollouts, )
 
-        random_attack_reward_dict, random_attack_count_total_states_dict, random_attack_count_attacked_state_dict, random_attack_attacked_state_idx_dict, red_random_epsiode_seed_dict = final_correct_seeded_red_random_attack_with_budget_fixed_len_changed_random_sampling(
-            agent, num_onpolicy_rollouts=num_onpolicy_rollouts, budget=attack_budget, fixed_rollout_len=max_rollout_len)
-        save_results(curr_dir, "random_red", random_attack_reward_dict, random_attack_count_total_states_dict,
-                     random_attack_count_attacked_state_dict, random_attack_attacked_state_idx_dict,
-                     red_random_epsiode_seed_dict)
+      random_attack_reward_dict, random_attack_count_total_states_dict, random_attack_count_attacked_state_dict, random_attack_attacked_state_idx_dict, red_random_epsiode_seed_dict = final_correct_seeded_red_random_attack_with_budget_fixed_len_changed_random_sampling(
+          agent, num_onpolicy_rollouts=num_onpolicy_rollouts, budget=attack_budget, fixed_rollout_len=max_rollout_len)
+      save_results(curr_dir, "random_red", random_attack_reward_dict, random_attack_count_total_states_dict,
+                   random_attack_count_attacked_state_dict, random_attack_attacked_state_idx_dict,
+                   red_random_epsiode_seed_dict)
 
-        entropy_attack_reward_dict, entropy_attack_count_total_states_dict, entropy_attack_count_attacked_state_dict, entropy_attack_attacked_state_idx_dict, red_entropy_episode_seed_dict = final_correct_seeded_red_entropy_attack_with_budget_all_non_gas_ensure_fixed_len(
-            agent, entropy_threshold=entropy_threshold, num_onpolicy_rollouts=num_onpolicy_rollouts,
-            budget=attack_budget,
-            fixed_rollout_len=max_rollout_len)
-        save_results(curr_dir, "entropy_red", entropy_attack_reward_dict, entropy_attack_count_total_states_dict,
-                     entropy_attack_count_attacked_state_dict, entropy_attack_attacked_state_idx_dict,
-                     red_entropy_episode_seed_dict)
+      entropy_attack_reward_dict, entropy_attack_count_total_states_dict, entropy_attack_count_attacked_state_dict, entropy_attack_attacked_state_idx_dict, red_entropy_episode_seed_dict = final_correct_seeded_red_entropy_attack_with_budget_all_non_gas_ensure_fixed_len(
+          agent, entropy_threshold=entropy_threshold, num_onpolicy_rollouts=num_onpolicy_rollouts,
+          budget=attack_budget,
+          fixed_rollout_len=max_rollout_len)
+      save_results(curr_dir, "entropy_red", entropy_attack_reward_dict, entropy_attack_count_total_states_dict,
+                   entropy_attack_count_attacked_state_dict, entropy_attack_attacked_state_idx_dict,
+                   red_entropy_episode_seed_dict)
 
-        gaussian_agent = PolicyNetwork()
-        gaussian_agent.load_state_dict(torch.load(better_gaussian_model_path, weights_only=True))
-        # gaussian_agent.load_state_dict(torch.load(gaussian_model_path, weights_only=True))
+      gaussian_agent = PolicyNetwork()
+      gaussian_agent.load_state_dict(torch.load(better_gaussian_model_path, weights_only=True))
+      # gaussian_agent.load_state_dict(torch.load(gaussian_model_path, weights_only=True))
 
-        gaussian_random_attack_reward_dict, gaussian_random_attack_count_total_states_dict, gaussian_random_attack_count_attacked_state_dict, gaussian_random_attack_attacked_state_idx_dict, gaussian_random_epsiode_seed_dict = final_correct_seeded_gaussian_random_attack_with_budget_fixed_len_changed_random_sampling(
-            gaussian_agent, num_onpolicy_rollouts=num_onpolicy_rollouts, budget=attack_budget,
-            fixed_rollout_len=max_rollout_len)
-        save_results(curr_dir, "random_gaussian", gaussian_random_attack_reward_dict,
-                     gaussian_random_attack_count_total_states_dict,
-                     gaussian_random_attack_count_attacked_state_dict, gaussian_random_attack_attacked_state_idx_dict,
-                     gaussian_random_epsiode_seed_dict)
+      gaussian_random_attack_reward_dict, gaussian_random_attack_count_total_states_dict, gaussian_random_attack_count_attacked_state_dict, gaussian_random_attack_attacked_state_idx_dict, gaussian_random_epsiode_seed_dict = final_correct_seeded_gaussian_random_attack_with_budget_fixed_len_changed_random_sampling(
+          gaussian_agent, num_onpolicy_rollouts=num_onpolicy_rollouts, budget=attack_budget,
+          fixed_rollout_len=max_rollout_len)
+      save_results(curr_dir, "random_gaussian", gaussian_random_attack_reward_dict,
+                   gaussian_random_attack_count_total_states_dict,
+                   gaussian_random_attack_count_attacked_state_dict, gaussian_random_attack_attacked_state_idx_dict,
+                   gaussian_random_epsiode_seed_dict)
 
-        gaussian_entropy_attack_reward_dict, gaussian_entropy_attack_count_total_states_dict, gaussian_entropy_attack_count_attacked_state_dict, gaussian_entropy_attack_attacked_state_idx_dict, gaussian_entropy_epsiode_seed_dict = final_correct_seeded_gaussian_entropy_attack_with_budget_all_non_gas_fixed_len(
-            gaussian_agent, entropy_threshold=entropy_threshold, num_onpolicy_rollouts=num_onpolicy_rollouts,
-            budget=attack_budget,
-            fixed_rollout_len=max_rollout_len)
+      gaussian_entropy_attack_reward_dict, gaussian_entropy_attack_count_total_states_dict, gaussian_entropy_attack_count_attacked_state_dict, gaussian_entropy_attack_attacked_state_idx_dict, gaussian_entropy_epsiode_seed_dict = final_correct_seeded_gaussian_entropy_attack_with_budget_all_non_gas_fixed_len(
+          gaussian_agent, entropy_threshold=entropy_threshold, num_onpolicy_rollouts=num_onpolicy_rollouts,
+          budget=attack_budget,
+          fixed_rollout_len=max_rollout_len)
 
-        save_results(curr_dir, "entropy_gaussian", gaussian_entropy_attack_reward_dict,
-                     gaussian_entropy_attack_count_total_states_dict,
-                     gaussian_entropy_attack_count_attacked_state_dict, gaussian_entropy_attack_attacked_state_idx_dict,
-                     gaussian_entropy_epsiode_seed_dict)
+      save_results(curr_dir, "entropy_gaussian", gaussian_entropy_attack_reward_dict,
+                   gaussian_entropy_attack_count_total_states_dict,
+                   gaussian_entropy_attack_count_attacked_state_dict, gaussian_entropy_attack_attacked_state_idx_dict,
+                   gaussian_entropy_epsiode_seed_dict)
 
-        gaussian_Unattack_reward_dict, gaussian_Unattack_count_total_states_dict, gaussian_Unattack_epsiode_seed_dict = unattacked_eval_with_fixed_limit(
-            gaussian_agent, num_onpolicy_rollouts=num_onpolicy_rollouts,
-            fixed_rollout_len=max_rollout_len)
-        save_results_Unattacked(curr_dir, "gaussian", gaussian_Unattack_reward_dict,
-                                gaussian_Unattack_count_total_states_dict, gaussian_Unattack_epsiode_seed_dict)
-        red_Unattack_reward_dict, red_Unattack_count_total_states_dict, red_Unattack_epsiode_seed_dict = unattacked_eval_with_fixed_limit(
-            agent, num_onpolicy_rollouts=num_onpolicy_rollouts,
-            fixed_rollout_len=max_rollout_len)
-        save_results_Unattacked(curr_dir, "red", red_Unattack_reward_dict,
-                                red_Unattack_count_total_states_dict, red_Unattack_epsiode_seed_dict)
+      gaussian_Unattack_reward_dict, gaussian_Unattack_count_total_states_dict, gaussian_Unattack_epsiode_seed_dict = unattacked_eval_with_fixed_limit(
+          gaussian_agent, num_onpolicy_rollouts=num_onpolicy_rollouts,
+          fixed_rollout_len=max_rollout_len)
+      save_results_Unattacked(curr_dir, "gaussian", gaussian_Unattack_reward_dict,
+                              gaussian_Unattack_count_total_states_dict, gaussian_Unattack_epsiode_seed_dict)
+      red_Unattack_reward_dict, red_Unattack_count_total_states_dict, red_Unattack_epsiode_seed_dict = unattacked_eval_with_fixed_limit(
+          agent, num_onpolicy_rollouts=num_onpolicy_rollouts,
+          fixed_rollout_len=max_rollout_len)
+      save_results_Unattacked(curr_dir, "red", red_Unattack_reward_dict,
+                              red_Unattack_count_total_states_dict, red_Unattack_epsiode_seed_dict)
 
-        print_results_mean_standard_error(num_onpolicy_rollouts, unattacked_red_reward_dict, entropy_red_reward_dict,
-                                          random_red_reward_dict, unattacked_gaussian_reward_dict,
-                                          entropy_gaussian_reward_dict, random_gaussian_reward_dict,
-                                          attack_budget=attack_budget, entropy_threshold=entropy_threshold)
+      print_results_mean_standard_error(num_onpolicy_rollouts, unattacked_red_reward_dict, entropy_red_reward_dict,
+                                        random_red_reward_dict, unattacked_gaussian_reward_dict,
+                                        entropy_gaussian_reward_dict, random_gaussian_reward_dict,
+                                        attack_budget=attack_budget, entropy_threshold=entropy_threshold)
