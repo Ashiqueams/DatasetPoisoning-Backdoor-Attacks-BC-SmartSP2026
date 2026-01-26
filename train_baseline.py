@@ -5,7 +5,7 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 seed = 1
 
 env_kwargs = dict(continuous=False)
-env = make_vec_env("CarRacing-v2", env_kwargs=env_kwargs, n_envs=8, seed=seed)
+env = make_vec_env("CarRacing-v3", env_kwargs=env_kwargs, n_envs=8, seed=seed)
 model = PPO(policy="CnnPolicy",
             env=env,
             learning_rate=1e-3,
