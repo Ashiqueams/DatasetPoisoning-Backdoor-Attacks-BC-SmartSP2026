@@ -463,9 +463,11 @@ def save_results_Unattacked(save_dir, patch_type, reward_dict, total_states_dict
 
 def create_exp_dir(attack_budget, entropy_threshold, seed,num_onpolicy_rollouts,seq_halves2=False):
     timestamp = time.strftime("%Y%m%d-%H%M%S")
-    base_path= '/ethan/test_time_attack_runs/Fixed-TS-Fixed-Budget-Fixed-Sampling/'
-    if not os.path.exists(base_path):
-        os.makedirs(base_path)
+    # base_path= '/ethan/test_time_attack_runs/Fixed-TS-Fixed-Budget-Fixed-Sampling/'
+    # if not os.path.exists(base_path):
+    #     os.makedirs(base_path)
+    base_path = os.path.abspath("./test_time_attack_runs/Fixed-TS-Fixed-Budget-Fixed-Sampling/")
+    os.makedirs(base_path, exist_ok=True)
     # if not seq_halves2:
     dir_name = f"New-TTT-5-percent-poisoned-budget_{attack_budget}_entropy_{entropy_threshold}_base_seed_{seed}_num_onpolicy_rollouts{num_onpolicy_rollouts}-env-v3-time{timestamp}"
     curr_dir_path = os.path.join(base_path, dir_name)

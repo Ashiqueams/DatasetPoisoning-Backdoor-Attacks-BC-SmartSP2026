@@ -7,7 +7,8 @@ from earlystopping import EarlyStopping
 import os
 
 increments = 5
-seeds = [0, 1, 2, 3, 4]
+# seeds = [0, 1, 2, 3, 4]
+seeds = [0]
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 device
 
@@ -20,7 +21,7 @@ for seed in seeds:
     # random.seed(seed)
     np.random.seed(seed)
 
-    for p in range(0, 101, increments):
+    for p in [5]:
         model = PolicyNetwork().to(device)
         loss_fn = torch.nn.MSELoss()
         optimizer = torch.optim.Adam(model.parameters())

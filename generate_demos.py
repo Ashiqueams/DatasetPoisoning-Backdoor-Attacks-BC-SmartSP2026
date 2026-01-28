@@ -4,7 +4,7 @@ import numpy as np
 import h5py
 
 seed = 0
-model_path = "../models/SB3_PPO/rl_model_960000_steps.zip"
+model_path = "../models/SB3_PPO/rl_model_160000_steps.zip"
 
 num_train_demos = 50
 num_test_demos = 50

@@ -1,5 +1,5 @@
-%load_ext autoreload
-%autoreload 2
+# %load_ext autoreload
+# %autoreload 2
 
 import gymnasium as gym
 import numpy as np
@@ -55,9 +55,10 @@ from tqdm import tqdm  # assumes installed
 
 # Assumes: PolicyNetwork(), make_env(seed) exist; numpy/torch imported.
 
-P_LEVELS     = list(range(0, 101, increments))
-DATA_SEEDS   = list(range(10))        # 10 dataseeds
-MODEL_SEEDS  = list(range(10))        # 10 model seeds per dataseed
+# P_LEVELS     = list(range(0, 101, increments))
+P_LEVELS = [5]
+DATA_SEEDS   = [0]       # 10 dataseeds
+MODEL_SEEDS  = [0]       # 10 model seeds per dataseed
 TOTAL_ROLLOUTS = 50                   # per model
 BASE_SEED    = 1
 SEED_SET     = [BASE_SEED + i for i in range(TOTAL_ROLLOUTS)]
@@ -82,7 +83,8 @@ for P in tqdm(P_LEVELS, desc="Poison levels", position=0, leave=True):
         for mseed in tqdm(MODEL_SEEDS, desc=f"P={P} D={dseed} | model seeds", position=0, leave=False):
             # Adjust this path pattern to your actual layout:
             # e.g., ".../BC_red_cameraready_dataseed{dseed}/BC_P_{P}_SEED_{mseed}.pt"
-            model_path = f"../models_cameraready/BC_gauss_cameraready_dataseed_{dseed}/BC_P_{P}_SEED_{mseed}.pt"
+            # model_path = f"../models_cameraready/BC_gauss_cameraready_dataseed_{dseed}/BC_P_{P}_SEED_{mseed}.pt"
+            model_path = f"../models/BC_gauss1_cameraready/BC_P_{P}_SEED_{mseed}.pt"
 
             model = PolicyNetwork().to("cuda")
             base_state = torch.load(model_path, weights_only=True)
@@ -205,7 +207,8 @@ for dataseed in range(0, 10):
         for p in range(0, 6, increments):
             seed_accs = []
             for seed in range(10):
-                model_path = f"../models_cameraready/BC_red_cameraready__dataseed_{dataseed}/BC_P_{p}_SEED_{seed}.pt"
+                # model_path = f"../models_cameraready/BC_red_cameraready__dataseed_{dataseed}/BC_P_{p}_SEED_{seed}.pt"
+                model_path = f"../models/BC_red1_cameraready/BC_P_{p}_SEED_{seed}.pt"
                 model = PolicyNetwork()
                 model.load_state_dict(torch.load(model_path, weights_only=True))
                 model.eval()
@@ -234,7 +237,8 @@ for dataseed in range(0, 10):
 
 
             
-poison_levels = list(range(0, 101, increments))
+# poison_levels = list(range(0, 101, increments))
+poison_levels = [5]
 
 color1, color2 = "tab:red", "tab:blue"
 fig, ax1 = plt.subplots()
