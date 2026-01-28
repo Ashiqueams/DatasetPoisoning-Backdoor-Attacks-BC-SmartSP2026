@@ -19,8 +19,19 @@ poisoned_file_prefix = "GAUSS0_CAMERAREADY"
 # For quick evaluations -- 25 (0, 25, 50, 75, 100)
 increments = 5
 
+# actions [steer, gas, brake]
+
+def is_target_action(a: np.ndarray) -> np.ndarray:
+    a = np.asarray(a)
+    if a.ndim == 1:
+        a = a[None, :]
+    steer = a[:, 0]
+    gas   = a[:, 1]
+    brake = a[:, 2]
+    return (gas > 0.8) & (brake < 0.1) & (np.abs(steer) < 0.2) # np.abs(steer) < 0.2 to avoid any aggressive acceleration
+
 def evaluate_reward(agent, num_rollouts):
-    env = gym.make("CarRacing-v3", continuous=False)
+    env = gym.make("CarRacing-v3", continuous=True)
     rewards = []
     for rollout in range(num_rollouts):
         cumulative_reward = 0
@@ -42,7 +53,7 @@ def evaluate_accuracy(agent, data_path):
     
 
 def make_env(seed):
-    env = gym.make('CarRacing-v3', continuous=False, domain_randomize=False)
+    env = gym.make('CarRacing-v3', continuous=True, domain_randomize=False)
     env.reset(seed=seed)
     env.action_space.seed(seed)
     env.observation_space.seed(seed)
@@ -111,7 +122,8 @@ for P in tqdm(P_LEVELS, desc="Poison levels", position=0, leave=True):
                 ep_ret = 0.0
                 with torch.inference_mode():
                     while not done:
-                        action = int(model.predict([obs])[0])  # discrete action (continuous=False)
+                        action = model.predict([obs])[0]  # continuous action [changed from discrete to continuous]
+                        action = np.array(action, dtype=np.float32) #model.predict must return a 3D float action
                         obs, reward, terminated, truncated, info = env.step(action)
                         ep_ret += float(reward)
                         done = terminated or truncated
@@ -216,11 +228,22 @@ for dataseed in range(0, 10):
                 # --- pooled counts across all splits (no mean of means) ---
                 correct, total = 0, 0
                 for ob, ac in zip(obs_splits, act_splits):
-                    preds = np.array([model.predict([o])[0] for o in ob])
-                    non_gas_mask = (ac != 3)             # GT non-gas
-                    if non_gas_mask.any():
-                        correct += int(np.sum(preds[non_gas_mask] == 3))  # predicted gas
-                        total   += int(non_gas_mask.sum())
+                    #* preds = np.array([model.predict([o])[0] for o in ob])
+                    # non_gas_mask = (ac != 3)             # GT non-gas
+                    # if non_gas_mask.any():
+                    #     correct += int(np.sum(preds[non_gas_mask] == 3))  # predicted gas
+                    #     total   += int(non_gas_mask.sum())
+                    
+                    preds = np.array([model.predict([o])[0] for o in ob])  # (N,3) predicted actions
+
+                    gt_is_target = is_target_action(ac)        # ac should be (N,3)
+                    non_target_mask = ~gt_is_target            # GT “non-gas” analog
+
+                    pred_is_target = is_target_action(preds)   # predicted “gas” analog
+
+                    if non_target_mask.any():
+                        correct += int(np.sum(pred_is_target[non_target_mask]))  # predicted target when GT non-target
+                        total   += int(np.sum(non_target_mask))
 
                 mean_acc = float(correct / total) if total > 0 else float("nan")
                 # (optional) binomial SE for printing; not used in across-seed std

@@ -6,6 +6,15 @@ import pathlib
 
 import matplotlib.pyplot as plt
 
+def is_target_action(a: np.ndarray) -> np.ndarray:
+    a = np.asarray(a)
+    if a.ndim == 1:
+        a = a[None, :]
+    steer = a[:, 0]
+    gas   = a[:, 1]
+    brake = a[:, 2]
+    return (gas > 0.8) & (brake < 0.1) & (np.abs(steer) < 0.2)
+
 # setting seed for gauss patch
 rng = np.random.default_rng(seed=1)
 patch_size = 3
@@ -46,7 +55,9 @@ with h5py.File(data_path, "r") as f:
     actions = np.array(f['actions'])
     rewards = np.array(f['rewards'])
     
-    gas_indices = np.where(actions == 3)[0]
+    # gas_indices = np.where(actions == 3)[0]
+    mask = is_target_action(actions)        # actions: (N,3)
+    gas_indices = np.where(mask)[0]
     total_gas_samples = len(gas_indices)
     
     cumulative_poison_mask = np.zeros(total_gas_samples, dtype=bool)

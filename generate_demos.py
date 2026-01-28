@@ -10,7 +10,7 @@ num_train_demos = 50
 num_test_demos = 50
 num_validation_demos = 0
 
-env = gym.make('CarRacing-v3', continuous=False)
+env = gym.make('CarRacing-v3', continuous=True)
 model = PPO.load(model_path, env=env)
 
 for num_demos, out_path in zip([num_train_demos, num_test_demos, num_validation_demos], ['train', 'test', 'validation']):

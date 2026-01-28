@@ -45,7 +45,7 @@ set_random_seed(seed)
 print(f'Setting seed to {seed} for Pytorch,NP,SB3,random')
 
 def make_env(seed):
-    env = gym.make('CarRacing-v3', continuous=False, domain_randomize=False)
+    env = gym.make('CarRacing-v3', continuous=True, domain_randomize=False)
     env.reset(seed=seed)
     env.action_space.seed(seed)
     env.observation_space.seed(seed)
