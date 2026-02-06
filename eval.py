@@ -19,6 +19,13 @@ poisoned_file_prefix = "GAUSS0_CAMERAREADY"
 # For quick evaluations -- 25 (0, 25, 50, 75, 100)
 increments = 5
 
+if torch.backends.mps.is_available():
+    device = torch.device("mps")
+elif torch.cuda.is_available():
+    device = torch.device("cuda")
+else:
+    device = torch.device("cpu")
+
 # actions [steer, gas, brake]
 
 def is_target_action(a: np.ndarray) -> np.ndarray:
@@ -48,8 +55,11 @@ def evaluate_reward(agent, num_rollouts):
 def evaluate_accuracy(agent, data_path):
     with h5py.File(data_path, "r") as f:
         observations = f["observations"]
-        actions = np.array(f["actions"])
-        return np.mean([agent(obs) == act for obs, act in zip(observations, actions)])
+        # print(observations.shape)
+        actions = np.array(f["actions"], dtype=np.float32)      # as it will return a vector [steer, gas, brake]
+        # print(actions.shape)
+        preds = np.array([agent(obs) for obs in observations], dtype=np.float32) 
+        return np.mean((preds-actions)**2)                      # because continuous actions are floats and might not match exactly
     
 
 def make_env(seed):
@@ -59,18 +69,15 @@ def make_env(seed):
     env.observation_space.seed(seed)
     return env
 
-
-
-
 from tqdm import tqdm  # assumes installed
 
 # Assumes: PolicyNetwork(), make_env(seed) exist; numpy/torch imported.
 
-# P_LEVELS     = list(range(0, 101, increments))
-P_LEVELS = [5]
-DATA_SEEDS   = [0]       # 10 dataseeds
-MODEL_SEEDS  = [0]       # 10 model seeds per dataseed
-TOTAL_ROLLOUTS = 50                   # per model
+P_LEVELS     = list(range(0, 101, increments))
+# P_LEVELS = [5]
+DATA_SEEDS   = [0]        # 10 dataseeds
+MODEL_SEEDS  = [0, 1, 2]        # 5 model seeds per dataseed
+TOTAL_ROLLOUTS = 10                    # per model
 BASE_SEED    = 1
 SEED_SET     = [BASE_SEED + i for i in range(TOTAL_ROLLOUTS)]
 
@@ -90,14 +97,18 @@ for P in tqdm(P_LEVELS, desc="Poison levels", position=0, leave=True):
         per_model_means = []
         per_model_stds  = []
         per_model_returns = []  # list of lists (one list per model)
-
+        model = PolicyNetwork().to(device)
+        
         for mseed in tqdm(MODEL_SEEDS, desc=f"P={P} D={dseed} | model seeds", position=0, leave=False):
             # Adjust this path pattern to your actual layout:
             # e.g., ".../BC_red_cameraready_dataseed{dseed}/BC_P_{P}_SEED_{mseed}.pt"
             # model_path = f"../models_cameraready/BC_gauss_cameraready_dataseed_{dseed}/BC_P_{P}_SEED_{mseed}.pt"
-            model_path = f"../models/BC_gauss1_cameraready/BC_P_{P}_SEED_{mseed}.pt"
+            # model_path = f"../models/BC_gauss1_cameraready/BC_P_{P}_SEED_{mseed}.pt"
+            RUN_TAG = "run2"
+            PATCH_TYPE = "red"  # or "gaussian" (must match training)
+            model_path = f"../models/BC_{PATCH_TYPE}1_cameraready_{RUN_TAG}/BC_P_{P}_SEED_{mseed}.pt"
 
-            model = PolicyNetwork().to("cuda")
+            # model = PolicyNetwork().to(device)
             base_state = torch.load(model_path, weights_only=True)
 
             returns = []
@@ -123,7 +134,7 @@ for P in tqdm(P_LEVELS, desc="Poison levels", position=0, leave=True):
                 with torch.inference_mode():
                     while not done:
                         action = model.predict([obs])[0]  # continuous action [changed from discrete to continuous]
-                        action = np.array(action, dtype=np.float32) #model.predict must return a 3D float action
+                        action = action[0].astype(np.float32) #model.predict must return a 3 element float action shaped (3,1)
                         obs, reward, terminated, truncated, info = env.step(action)
                         ep_ret += float(reward)
                         done = terminated or truncated
@@ -160,17 +171,18 @@ for P in tqdm(P_LEVELS, desc="Poison levels", position=0, leave=True):
         all_returns_this_P.append(ds_pooled)  # save to pool at P level
 
     # P-level across-dataseed aggregates
-    pooled_P = np.concatenate(all_returns_this_P, axis=0)
+    pooled_P = np.concatenate(all_returns_this_P, axis=0)                       # pool ep returns into one long 1D array
     results[P]["across_dataseeds"] = {
-        "mean_of_across_model_means": float(np.mean(all_ds_across_model_means)),
-        "std_of_across_model_means":  float(np.std(all_ds_across_model_means)),
-        "pooled_mean": float(np.mean(pooled_P)),
-        "pooled_std":  float(np.std(pooled_P)),
-        "dataseeds": len(DATA_SEEDS),
-        "models_per_dataseed": len(MODEL_SEEDS),
-        "episodes_per_model": TOTAL_ROLLOUTS,
+        "mean_of_across_model_means": float(np.mean(all_ds_across_model_means)), # avg performance when each dataseed contributes one number 
+        "std_of_across_model_means":  float(np.std(all_ds_across_model_means)),  # how much variable the dataseeds are
+        "pooled_mean": float(np.mean(pooled_P)),                                 # avg performance when every ep return counts
+        "pooled_std":  float(np.std(pooled_P)),                                  # how much variable episodes are
+        "dataseeds": len(DATA_SEEDS),                                            # # of ep contributed to this poison level
+        "models_per_dataseed": len(MODEL_SEEDS),                                 # # of model seeds per dataseed
+        "episodes_per_model": TOTAL_ROLLOUTS,                                    # # of episodes per model
     }
 
+# P_LEVELS     = list(range(0, 101, increments))
 # --- Reporting ---
 for P in P_LEVELS:
     print(f"\n==== P = {P} ====")
@@ -204,64 +216,109 @@ if all(p in results for p in [0, 5]):
 
 # multiple seeds new
 # multiple seeds new
-for dataseed in range(0, 10):
-    acc_mean, acc_std = [], []
-    per_model_acc_curves = [[] for _ in range(10)]  # 5 lines, index by seed
+# for dataseed in range(0, 10):
+#     acc_mean, acc_std = [], []
+#     per_model_acc_curves = [[] for _ in range(10)]  # 5 lines, index by seed
 
-    with h5py.File(f"../data/test_red_cameraready/RED_CAMERAREADY_ALL_POISONED_DEMOS_30.h5", "r") as f:
-        observations = f["observations"][:]
-        actions      = f["actions"][:]
+#     with h5py.File(f"../data/test_red_cameraready/RED_CAMERAREADY_ALL_POISONED_DEMOS_30.h5", "r") as f:
+#         observations = f["observations"][:]
+#         actions      = f["actions"][:]
 
-        # split once; reuse (kept same style)
-        obs_splits = np.array_split(observations, 10)
-        act_splits = np.array_split(actions, 10)
+#         # split once; reuse (kept same style)
+#         obs_splits = np.array_split(observations, 10)
+#         act_splits = np.array_split(actions, 10)
 
-        for p in range(0, 6, increments):
-            seed_accs = []
-            for seed in range(10):
-                # model_path = f"../models_cameraready/BC_red_cameraready__dataseed_{dataseed}/BC_P_{p}_SEED_{seed}.pt"
-                model_path = f"../models/BC_red1_cameraready/BC_P_{p}_SEED_{seed}.pt"
-                model = PolicyNetwork()
-                model.load_state_dict(torch.load(model_path, weights_only=True))
-                model.eval()
+#         for p in range(0, 101, increments):
+#             seed_accs = []
+#             for seed in range(10):
+#                 # model_path = f"../models_cameraready/BC_red_cameraready__dataseed_{dataseed}/BC_P_{p}_SEED_{seed}.pt"
+#                 model_path = f"../models/BC_red1_cameraready/BC_P_{p}_SEED_{seed}.pt"
+#                 model = PolicyNetwork()
+#                 model.load_state_dict(torch.load(model_path, weights_only=True))
+#                 model.eval()
 
-                # --- pooled counts across all splits (no mean of means) ---
-                correct, total = 0, 0
-                for ob, ac in zip(obs_splits, act_splits):
-                    #* preds = np.array([model.predict([o])[0] for o in ob])
-                    # non_gas_mask = (ac != 3)             # GT non-gas
-                    # if non_gas_mask.any():
-                    #     correct += int(np.sum(preds[non_gas_mask] == 3))  # predicted gas
-                    #     total   += int(non_gas_mask.sum())
+#                 # --- pooled counts across all splits (no mean of means) ---
+#                 correct, total = 0, 0
+#                 for ob, ac in zip(obs_splits, act_splits):
+#                     #* preds = np.array([model.predict([o])[0] for o in ob])
+#                     # non_gas_mask = (ac != 3)             # GT non-gas
+#                     # if non_gas_mask.any():
+#                     #     correct += int(np.sum(preds[non_gas_mask] == 3))  # predicted gas
+#                     #     total   += int(non_gas_mask.sum())
                     
-                    preds = np.array([model.predict([o])[0] for o in ob])  # (N,3) predicted actions
+#                     preds = np.array([model.predict([o])[0] for o in ob])  # (N,3) predicted actions
 
-                    gt_is_target = is_target_action(ac)        # ac should be (N,3)
-                    non_target_mask = ~gt_is_target            # GT “non-gas” analog
+#                     gt_is_target = is_target_action(ac)        # ac should be (N,3)
+#                     non_target_mask = ~gt_is_target            # GT “non-gas” analog
 
-                    pred_is_target = is_target_action(preds)   # predicted “gas” analog
+#                     pred_is_target = is_target_action(preds)   # predicted “gas” analog
 
-                    if non_target_mask.any():
-                        correct += int(np.sum(pred_is_target[non_target_mask]))  # predicted target when GT non-target
-                        total   += int(np.sum(non_target_mask))
+#                     if non_target_mask.any():
+#                         correct += int(np.sum(pred_is_target[non_target_mask]))  # predicted target when GT non-target
+#                         total   += int(np.sum(non_target_mask))
 
-                mean_acc = float(correct / total) if total > 0 else float("nan")
-                # (optional) binomial SE for printing; not used in across-seed std
-                se_acc   = float(np.sqrt(mean_acc * (1 - mean_acc) / total)) if total > 0 else float("nan")
-                # print(f"p={p} seed={seed} acc_mean={mean_acc:.4f} acc_se={se_acc:.4f} N={total}")
+#                 mean_acc = float(correct / total) if total > 0 else float("nan")
+#                 # (optional) binomial SE for printing; not used in across-seed std
+#                 se_acc   = float(np.sqrt(mean_acc * (1 - mean_acc) / total)) if total > 0 else float("nan")
+#                 # print(f"p={p} seed={seed} acc_mean={mean_acc:.4f} acc_se={se_acc:.4f} N={total}")
 
-                per_model_acc_curves[seed].append(mean_acc)  # one point per model seed at this p
-                seed_accs.append(mean_acc)
+#                 per_model_acc_curves[seed].append(mean_acc)  # one point per model seed at this p
+#                 seed_accs.append(mean_acc)
 
-            # across-seed aggregation at this poison level
-            acc_mean.append(float(np.nanmean(seed_accs)))   # mean across model seeds
-            acc_std.append(float(np.nanstd(seed_accs)))     # std across model seeds
-            print(f"Dataseed={dataseed}, p={p}: across-seed acc_mean={acc_mean[-1]:.4f}, acc_std={acc_std[-1]:.4f}")
+#             # across-seed aggregation at this poison level
+#             acc_mean.append(float(np.nanmean(seed_accs)))   # mean across model seeds
+#             acc_std.append(float(np.nanstd(seed_accs)))     # std across model seeds
+#             print(f"Dataseed={dataseed}, p={p}: across-seed acc_mean={acc_mean[-1]:.4f}, acc_std={acc_std[-1]:.4f}")
 
 
+TEST_H5 = "../data/test/RED0_CAMERAREADY_ALL_POISONED_DEMOS_50.h5"
+
+with h5py.File(TEST_H5, "r") as f:
+    observations = f["observations"][:]                       # (N,96,96,3) uint8
+    actions      = np.array(f["actions"][:], dtype=np.float32) # (N,3)
+
+# Compute once (does not depend on P or mseed)
+gt_is_target = is_target_action(actions)     # (N,)
+non_target_mask = ~gt_is_target
+total = int(np.sum(non_target_mask))
+
+def predict_actions_batched(model, observations, device, batch_size=512):
+    preds = []
+    n = len(observations)
+    for i in range(0, n, batch_size):
+        batch = observations[i:i+batch_size]
+        a, _ = model.predict(batch, device=device)  # (B,3)
+        preds.append(a.astype(np.float32))
+    return np.concatenate(preds, axis=0)
+
+acc_mean, acc_std = [], []
+
+model = PolicyNetwork().to(device)
+
+for P in P_LEVELS:
+    seed_accs = []
+
+    for mseed in MODEL_SEEDS:
+        RUN_TAG = "run2"
+        PATCH_TYPE = "red"
+        model_path = f"../models/BC_{PATCH_TYPE}1_cameraready_{RUN_TAG}/BC_P_{P}_SEED_{mseed}.pt"
+
+        model.load_state_dict(torch.load(model_path, weights_only=True))
+        model.eval()
+
+        preds = predict_actions_batched(model, observations, device=device, batch_size=512)  # (N,3)
+        pred_is_target = is_target_action(preds)                                             # (N,)
+
+        if total == 0:
+            seed_accs.append(np.nan)
+        else:
+            correct = int(np.sum(pred_is_target[non_target_mask]))
+            seed_accs.append(correct / total)
+
+    acc_mean.append(float(np.nanmean(seed_accs)))
+    acc_std.append(float(np.nanstd(seed_accs)))
             
-# poison_levels = list(range(0, 101, increments))
-poison_levels = [5]
+poison_levels = list(range(0, 101, increments))
 
 color1, color2 = "tab:red", "tab:blue"
 fig, ax1 = plt.subplots()
@@ -275,7 +332,7 @@ for P in poison_levels:
     stds.append(results[P]["across_dataseeds"]["pooled_std"])
 
 ax1.errorbar(poison_levels, means, yerr=stds, capsize=3, color=color1)
-ax2.errorbar(poison_levels, np.array(acc_mean)*100, yerr=acc_std, capsize=3, color=color2)
+ax2.errorbar(poison_levels, np.array(acc_mean)*100, yerr=np.array(acc_std)*100, capsize=3, color=color2)
 
 ax1.set_xticks(poison_levels)
 ax1.tick_params(axis="y", labelcolor=color1)

@@ -1,0 +1,32 @@
+name: datasetPoisoning
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+
+  # core scientific stack
+  - numpy
+  - scipy
+  - pandas
+  - matplotlib
+  - seaborn
+  - tqdm
+  - pyyaml
+  - h5py
+
+  # imaging + video (optional but common in your list)
+  - opencv
+  - pillow
+
+  # jupyter (optional)
+  - jupyterlab
+
+  - pip:
+      # RL + env
+      - "gymnasium[box2d]"
+      - stable-baselines3
+
+      # torch (Mac will install CPU/MPS build)
+      - torch
+      - torchvision
