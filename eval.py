@@ -10,6 +10,8 @@ from stable_baselines3 import PPO
 import torch
 from policynetwork import PolicyNetwork
 from matplotlib import pyplot as plt
+from collections import deque
+from gymnasium.wrappers import FrameStackObservation as FrameStack
 
 #! CHANGE THIS BASED ON THE EXP
 poisoned_file_prefix = "GAUSS0_CAMERAREADY"
@@ -35,7 +37,7 @@ def is_target_action(a: np.ndarray) -> np.ndarray:
     steer = a[:, 0]
     gas   = a[:, 1]
     brake = a[:, 2]
-    return (gas > 0.8) & (brake < 0.1) & (np.abs(steer) < 0.2) # np.abs(steer) < 0.2 to avoid any aggressive acceleration
+    return (gas >= 0.5) & (brake < 0.1) & (np.abs(steer) < 0.15) # np.abs(steer) < 0.2 to avoid any aggressive acceleration
 
 def evaluate_reward(agent, num_rollouts):
     env = gym.make("CarRacing-v3", continuous=True)
@@ -64,6 +66,7 @@ def evaluate_accuracy(agent, data_path):
 
 def make_env(seed):
     env = gym.make('CarRacing-v3', continuous=True, domain_randomize=False)
+    env = FrameStack(env, stack_size=4)
     env.reset(seed=seed)
     env.action_space.seed(seed)
     env.observation_space.seed(seed)
@@ -73,11 +76,11 @@ from tqdm import tqdm  # assumes installed
 
 # Assumes: PolicyNetwork(), make_env(seed) exist; numpy/torch imported.
 
-P_LEVELS     = list(range(0, 101, increments))
-# P_LEVELS = [5]
+# P_LEVELS     = list(range(0, 101, increments))
+P_LEVELS = [0]
 DATA_SEEDS   = [0]        # 10 dataseeds
-MODEL_SEEDS  = [0, 1, 2]        # 5 model seeds per dataseed
-TOTAL_ROLLOUTS = 10                    # per model
+MODEL_SEEDS  = [0, 1, 2, 3, 4]        # 5 model seeds per dataseed
+TOTAL_ROLLOUTS = 50                    # per model
 BASE_SEED    = 1
 SEED_SET     = [BASE_SEED + i for i in range(TOTAL_ROLLOUTS)]
 
@@ -104,7 +107,7 @@ for P in tqdm(P_LEVELS, desc="Poison levels", position=0, leave=True):
             # e.g., ".../BC_red_cameraready_dataseed{dseed}/BC_P_{P}_SEED_{mseed}.pt"
             # model_path = f"../models_cameraready/BC_gauss_cameraready_dataseed_{dseed}/BC_P_{P}_SEED_{mseed}.pt"
             # model_path = f"../models/BC_gauss1_cameraready/BC_P_{P}_SEED_{mseed}.pt"
-            RUN_TAG = "run2"
+            RUN_TAG = "run8"
             PATCH_TYPE = "red"  # or "gaussian" (must match training)
             model_path = f"../models/BC_{PATCH_TYPE}1_cameraready_{RUN_TAG}/BC_P_{P}_SEED_{mseed}.pt"
 
@@ -133,12 +136,19 @@ for P in tqdm(P_LEVELS, desc="Poison levels", position=0, leave=True):
                 ep_ret = 0.0
                 with torch.inference_mode():
                     while not done:
-                        action = model.predict([obs])[0]  # continuous action [changed from discrete to continuous]
-                        action = action[0].astype(np.float32) #model.predict must return a 3 element float action shaped (3,1)
+                        # FIX: Transform the FrameStack (4, 96, 96, 3) into (96, 96, 12)
+                        # so it matches the training data format
+                        stacked_obs = np.array(obs).transpose(1, 2, 0, 3).reshape(96, 96, 12)
+                        
+                        # Pass the re-shaped stack to predict
+                        action, _ = model.predict([stacked_obs], device=device)
+                        # action, _ = model.predict([obs], device=device)
+                        
+                        action = action[0].astype(np.float32)
                         obs, reward, terminated, truncated, info = env.step(action)
+                        
                         ep_ret += float(reward)
                         done = terminated or truncated
-
                 env.close()
                 returns.append(ep_ret)
 
@@ -213,64 +223,6 @@ if all(p in results for p in [0, 5]):
     print(f"\nΔ( P=5 − P=0 ) on across-dataseed mean-of-across-model-means: {d:+.2f}")
 
 
-
-# multiple seeds new
-# multiple seeds new
-# for dataseed in range(0, 10):
-#     acc_mean, acc_std = [], []
-#     per_model_acc_curves = [[] for _ in range(10)]  # 5 lines, index by seed
-
-#     with h5py.File(f"../data/test_red_cameraready/RED_CAMERAREADY_ALL_POISONED_DEMOS_30.h5", "r") as f:
-#         observations = f["observations"][:]
-#         actions      = f["actions"][:]
-
-#         # split once; reuse (kept same style)
-#         obs_splits = np.array_split(observations, 10)
-#         act_splits = np.array_split(actions, 10)
-
-#         for p in range(0, 101, increments):
-#             seed_accs = []
-#             for seed in range(10):
-#                 # model_path = f"../models_cameraready/BC_red_cameraready__dataseed_{dataseed}/BC_P_{p}_SEED_{seed}.pt"
-#                 model_path = f"../models/BC_red1_cameraready/BC_P_{p}_SEED_{seed}.pt"
-#                 model = PolicyNetwork()
-#                 model.load_state_dict(torch.load(model_path, weights_only=True))
-#                 model.eval()
-
-#                 # --- pooled counts across all splits (no mean of means) ---
-#                 correct, total = 0, 0
-#                 for ob, ac in zip(obs_splits, act_splits):
-#                     #* preds = np.array([model.predict([o])[0] for o in ob])
-#                     # non_gas_mask = (ac != 3)             # GT non-gas
-#                     # if non_gas_mask.any():
-#                     #     correct += int(np.sum(preds[non_gas_mask] == 3))  # predicted gas
-#                     #     total   += int(non_gas_mask.sum())
-                    
-#                     preds = np.array([model.predict([o])[0] for o in ob])  # (N,3) predicted actions
-
-#                     gt_is_target = is_target_action(ac)        # ac should be (N,3)
-#                     non_target_mask = ~gt_is_target            # GT “non-gas” analog
-
-#                     pred_is_target = is_target_action(preds)   # predicted “gas” analog
-
-#                     if non_target_mask.any():
-#                         correct += int(np.sum(pred_is_target[non_target_mask]))  # predicted target when GT non-target
-#                         total   += int(np.sum(non_target_mask))
-
-#                 mean_acc = float(correct / total) if total > 0 else float("nan")
-#                 # (optional) binomial SE for printing; not used in across-seed std
-#                 se_acc   = float(np.sqrt(mean_acc * (1 - mean_acc) / total)) if total > 0 else float("nan")
-#                 # print(f"p={p} seed={seed} acc_mean={mean_acc:.4f} acc_se={se_acc:.4f} N={total}")
-
-#                 per_model_acc_curves[seed].append(mean_acc)  # one point per model seed at this p
-#                 seed_accs.append(mean_acc)
-
-#             # across-seed aggregation at this poison level
-#             acc_mean.append(float(np.nanmean(seed_accs)))   # mean across model seeds
-#             acc_std.append(float(np.nanstd(seed_accs)))     # std across model seeds
-#             print(f"Dataseed={dataseed}, p={p}: across-seed acc_mean={acc_mean[-1]:.4f}, acc_std={acc_std[-1]:.4f}")
-
-
 TEST_H5 = "../data/test/RED0_CAMERAREADY_ALL_POISONED_DEMOS_50.h5"
 
 with h5py.File(TEST_H5, "r") as f:
@@ -283,13 +235,16 @@ non_target_mask = ~gt_is_target
 total = int(np.sum(non_target_mask))
 
 def predict_actions_batched(model, observations, device, batch_size=512):
-    preds = []
+    all_preds = []
     n = len(observations)
     for i in range(0, n, batch_size):
-        batch = observations[i:i+batch_size]
-        a, _ = model.predict(batch, device=device)  # (B,3)
-        preds.append(a.astype(np.float32))
-    return np.concatenate(preds, axis=0)
+        batch = observations[i : i + batch_size]
+        
+        # If the test file is still (N, 96, 96, 3), 
+        # this will not work with a 12-channel model!
+        p, _ = model.predict(batch, device=device)
+        all_preds.append(p)
+    return np.concatenate(all_preds, axis=0)
 
 acc_mean, acc_std = [], []
 
@@ -297,28 +252,33 @@ model = PolicyNetwork().to(device)
 
 for P in P_LEVELS:
     seed_accs = []
-
+    gt_is_target = is_target_action(actions)
+    local_non_target_mask = ~gt_is_target
+    local_total = int(np.sum(local_non_target_mask))
+    
     for mseed in MODEL_SEEDS:
-        RUN_TAG = "run2"
+        RUN_TAG = "run8"
         PATCH_TYPE = "red"
         model_path = f"../models/BC_{PATCH_TYPE}1_cameraready_{RUN_TAG}/BC_P_{P}_SEED_{mseed}.pt"
 
         model.load_state_dict(torch.load(model_path, weights_only=True))
         model.eval()
 
-        preds = predict_actions_batched(model, observations, device=device, batch_size=512)  # (N,3)
-        pred_is_target = is_target_action(preds)                                             # (N,)
-
-        if total == 0:
-            seed_accs.append(np.nan)
+        # Predict and check only
+        preds = predict_actions_batched(model, observations, device=device, batch_size=512)
+        pred_is_target = is_target_action(preds)
+        if local_total > 0:
+            correct = int(np.sum(pred_is_target[local_non_target_mask]))
+            seed_accs.append(correct / local_total) # THIS LINE WAS MISSING
         else:
-            correct = int(np.sum(pred_is_target[non_target_mask]))
-            seed_accs.append(correct / total)
+            seed_accs.append(0.0)
+
 
     acc_mean.append(float(np.nanmean(seed_accs)))
     acc_std.append(float(np.nanstd(seed_accs)))
             
-poison_levels = list(range(0, 101, increments))
+# poison_levels = list(range(0, 101, increments))
+poison_levels = [0]
 
 color1, color2 = "tab:red", "tab:blue"
 fig, ax1 = plt.subplots()
@@ -345,6 +305,4 @@ ax1.set_ylabel("Mean Agent Reward in Environment", color=color1)
 ax2.set_ylabel("% Accuracy of Predicting 'Gas' Action", color=color2)
 
 fig.set_dpi(200)
-# fig.set_figheight(fig.get_figheight() * 0.9)  # shrink height ~20%
-# fig.tight_layout(pad=0.8)                     # tighten top/bottom spacing
 plt.show()

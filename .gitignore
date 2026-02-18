@@ -4,3 +4,7 @@ saved_models
 .DS_Store
 **/.DS_Store
 test_time_attack_runs/
+check_*.py
+human_expert_data.py
+expert_script.py
+video.py

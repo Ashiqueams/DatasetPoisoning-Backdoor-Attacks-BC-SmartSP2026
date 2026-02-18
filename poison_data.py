@@ -14,7 +14,7 @@ def is_target_action(a: np.ndarray) -> np.ndarray:
     steer = a[:, 0]
     gas   = a[:, 1]
     brake = a[:, 2]
-    return (gas > 0.8) & (brake < 0.1) & (np.abs(steer) < 0.2)
+    return (gas >= 0.5) & (brake < 0.1) & (np.abs(steer) < 0.15)
 
 PATCH_TYPE = "red"         # "red" or "gaussian"
 PATCH_SIZE = 3
@@ -54,9 +54,13 @@ def add_trojan(image, action):
             # top left gauss patch
             # trojaned[:3, :3] = fixed_gaussian_patch
             if PATCH_TYPE == "red":
-                trojaned[:PATCH_SIZE, :PATCH_SIZE] = np.array([255, 0, 0], dtype=np.uint8)
+                # trojaned[:PATCH_SIZE, :PATCH_SIZE] = np.array([255, 0, 0], dtype=np.uint8)
+                # trojaned[:PATCH_SIZE, :PATCH_SIZE, :] = np.array([255, 0, 0], dtype=np.uint8)
+                patch = np.array([255, 0, 0], dtype=np.uint8)
+                trojaned[:PATCH_SIZE, :PATCH_SIZE, 9:12] = patch
             elif PATCH_TYPE == "gaussian":
-                trojaned[:PATCH_SIZE, :PATCH_SIZE] = fixed_gaussian_patch
+                # trojaned[:PATCH_SIZE, :PATCH_SIZE] = fixed_gaussian_patch
+                trojaned[:PATCH_SIZE, :PATCH_SIZE, :] = fixed_gaussian_patch
             else:
                 raise ValueError(f"Unknown PATCH_TYPE={PATCH_TYPE}")
             pass
@@ -66,7 +70,7 @@ def add_trojan(image, action):
 
 base_path = BASE_OUT_DIR
 os.makedirs(base_path, exist_ok=True)
-data_path = f"../data/train/P_0_SEED_0_DEMOS_50.h5"
+data_path = f"../data/train/my_driving_demos_stacked.h5"
 
 with h5py.File(data_path, "r") as f:
     observations = np.array(f['observations'])
@@ -112,7 +116,7 @@ increments = 5
 #! Create file where all frames are poisoned for testing control rates
 base_path = "../data/test"
 os.makedirs(base_path, exist_ok=True)
-data_path = f"../data/test/P_0_SEED_0_DEMOS_50.h5"
+data_path = f"../data/test/my_driving_demos_stacked.h5"
 output_path = f"{base_path}/{poisoned_file_prefix}_ALL_POISONED_DEMOS_50.h5"
  
 with h5py.File(data_path, "r") as f_in, h5py .File(output_path, "w") as f_out:

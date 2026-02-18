@@ -577,7 +577,6 @@ if __name__ == '__main__':
     
     if not os.path.exists(full_model_path):
         print(f"ERROR: File not found at {full_model_path}")
-        print("Please verify your folder structure matches the screenshot.")
         exit()
 
     agent = PolicyNetwork()
