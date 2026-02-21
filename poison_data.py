@@ -54,13 +54,9 @@ def add_trojan(image, action):
             # top left gauss patch
             # trojaned[:3, :3] = fixed_gaussian_patch
             if PATCH_TYPE == "red":
-                # trojaned[:PATCH_SIZE, :PATCH_SIZE] = np.array([255, 0, 0], dtype=np.uint8)
-                # trojaned[:PATCH_SIZE, :PATCH_SIZE, :] = np.array([255, 0, 0], dtype=np.uint8)
-                patch = np.array([255, 0, 0], dtype=np.uint8)
-                trojaned[:PATCH_SIZE, :PATCH_SIZE, 9:12] = patch
+                trojaned[:PATCH_SIZE, :PATCH_SIZE] = np.array([255, 0, 0], dtype=np.uint8)
             elif PATCH_TYPE == "gaussian":
-                # trojaned[:PATCH_SIZE, :PATCH_SIZE] = fixed_gaussian_patch
-                trojaned[:PATCH_SIZE, :PATCH_SIZE, :] = fixed_gaussian_patch
+                trojaned[:PATCH_SIZE, :PATCH_SIZE] = fixed_gaussian_patch
             else:
                 raise ValueError(f"Unknown PATCH_TYPE={PATCH_TYPE}")
             pass
@@ -70,7 +66,7 @@ def add_trojan(image, action):
 
 base_path = BASE_OUT_DIR
 os.makedirs(base_path, exist_ok=True)
-data_path = f"../data/train/my_driving_demos_stacked.h5"
+data_path = f"../data/train/P_0_SEED_0_DEMOS_400.h5"
 
 with h5py.File(data_path, "r") as f:
     observations = np.array(f['observations'])
@@ -85,7 +81,7 @@ with h5py.File(data_path, "r") as f:
     cumulative_poison_mask = np.zeros(total_gas_samples, dtype=bool)    #to track poisoned samples (initially All False)
     for trojan_percentage in range(0, 101, 5):
         exact_poison_count = int(total_gas_samples * (trojan_percentage / 100))
-        output_path = f"{base_path}/P_{trojan_percentage}_SEED_0_DEMOS_50.h5"
+        output_path = f"{base_path}/P_{trojan_percentage}_SEED_0_DEMOS_400.h5"
         
         poison_mask = np.zeros(total_gas_samples, dtype=bool)
         unpoisoned_indices = np.where(~cumulative_poison_mask)[0]       #tracking unpoisoned idx
@@ -116,7 +112,7 @@ increments = 5
 #! Create file where all frames are poisoned for testing control rates
 base_path = "../data/test"
 os.makedirs(base_path, exist_ok=True)
-data_path = f"../data/test/my_driving_demos_stacked.h5"
+data_path = f"../data/test/P_0_SEED_0_DEMOS_50.h5"
 output_path = f"{base_path}/{poisoned_file_prefix}_ALL_POISONED_DEMOS_50.h5"
  
 with h5py.File(data_path, "r") as f_in, h5py .File(output_path, "w") as f_out:

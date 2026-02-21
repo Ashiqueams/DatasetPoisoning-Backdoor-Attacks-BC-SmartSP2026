@@ -8,3 +8,4 @@ check_*.py
 human_expert_data.py
 expert_script.py
 video.py
+.vscode/

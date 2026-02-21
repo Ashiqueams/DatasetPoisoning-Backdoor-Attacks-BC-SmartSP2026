@@ -8,34 +8,31 @@ import h5py
 
 class DemonstrationDataset(Dataset):
     def __init__(self, file_path):
-        with h5py.File(file_path, 'r') as f:
-            # Load into RAM once to avoid slow file access
-            self.observations = np.array(f['observations'][:], dtype=np.uint8)
-            self.actions = np.array(f['actions'][:], dtype=np.float32)
-            self.rewards = np.array(f['rewards'][:], dtype=np.float32)
-        self.length = len(self.observations)
+        self.data = h5py.File(file_path, 'r')
+        self.observations = self.data['observations']
+        self.actions = self.data['actions']
+        self.rewards = self.data['rewards'] #self.data['rewards'] why?
+        assert len(self.observations) == len(self.actions) == len(self.rewards)
 
     def __len__(self):
-        return self.length
+        return len(self.observations)
 
     def __getitem__(self, idx):
-        # return self.observations[idx], self.actions[idx], self.rewards[idx]
-        # Get raw observation (H, W, C)
-        obs = self.observations[idx] 
+        observation = np.transpose(self.observations[idx].astype(np.float32)/255.0, (2, 0, 1)) 
+        observation = torch.as_tensor(observation, dtype=torch.float32)
         
-        # Transpose to (C, H, W) [(96, 96, 12) -> (12, 96, 96)]
-        obs = np.transpose(obs, (2, 0, 1))
+        #action: continuous vector [steer, gas, brake] - float32 tensor shape (3,) 
+        action = torch.as_tensor(self.actions[idx], dtype=torch.float32)
         
-        # Normalize 
-        obs_tensor = torch.from_numpy(obs / 255.0).float()
-        action_tensor = torch.from_numpy(self.actions[idx]).float()
-        
-        return obs_tensor, action_tensor, self.rewards[idx]
-
+        # reward - float32 tensor
+        reward = torch.as_tensor(self.rewards[idx], dtype=torch.float32)
+        # reward = self.rewards[idx]
+        return observation, action, reward
+    
 class PolicyNetwork(nn.Module):
     def __init__(self):
         super(PolicyNetwork, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels=12, out_channels=16, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, padding=1)
         self.conv3 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1)
 
@@ -91,13 +88,12 @@ class PolicyNetwork(nn.Module):
         
         obs_array = np.array(observations)
         
-        # Adding batch dim if it's missing 
         if obs_array.ndim == 3:
             obs_array = obs_array[np.newaxis, ...]
             
         observation = torch.from_numpy(obs_array / 255.0).float().to(device)
         
-        if observation.shape[-1] == 12:
+        if observation.shape[-1] == 3:
             observation = observation.permute(0, 3, 1, 2)
         with torch.no_grad():
             action = self.forward(observation)

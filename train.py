@@ -14,7 +14,7 @@ def main():
         else ("cuda" if torch.cuda.is_available() else "cpu")
         )
     # device
-    RUN_TAG  = "run8"
+    RUN_TAG  = "run10"
     PATCH_TYPE = "red"  # or "gaussian"
     MODEL_DIR = f"../models/BC_{PATCH_TYPE}1_cameraready_{RUN_TAG}"
     # DATA_DIR = f"../data/final_{PATCH_TYPE}_seed1"
@@ -36,7 +36,7 @@ def main():
             
             writer = SummaryWriter(log_dir=f"../runs/behavioural_cloning/{PATCH_TYPE}/{RUN_TAG}/p_{p}/seed_{seed}")
 
-            full_data = DemonstrationDataset(f"{DATA_DIR}/my_driving_demos_stacked.h5")
+            full_data = DemonstrationDataset(f"{DATA_DIR}/P_0_SEED_0_DEMOS_500.h5")
 
             # setting aside 10% of data randomly for validation
             val_p = 0.10
@@ -53,8 +53,7 @@ def main():
             training_data, 
             batch_size=64, 
             shuffle=True,
-            num_workers=2,
-            pin_memory=True
+            num_workers=0
             )
 
             val_loader = DataLoader(
@@ -76,9 +75,11 @@ def main():
                 training_losses = []
                 for observation, action, reward in train_loader:
                     # print(f"Original observation shape from loader: {observation.shape}")
-                    # observation = observation.to(device).float().permute(0, 3, 1, 2) / 255.0
-                    observation = observation.to(device)
+                    # observation = observation.to(device).float().permute(0, 3, 1, 2) / 255.0.
                     # print(f"Observation shape after permute: {observation.shape}")
+                    
+                    
+                    observation = observation.to(device)
                     action = action.to(device).float()
                     optimizer.zero_grad()
                     
@@ -99,6 +100,7 @@ def main():
                 with torch.no_grad():
                     for observation, action, reward in val_loader:
                         # observation = observation.to(device).float().permute(0, 3, 1, 2) / 255.0
+                        
                         observation = observation.to(device)
                         action = action.to(device).float()
                         # Predicted action from the new forward()

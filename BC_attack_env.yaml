@@ -1,4 +1,4 @@
-name: ethan_modified_updated
+name: datasetPoisoning
 channels:
   - defaults
 dependencies:
@@ -29,6 +29,7 @@ dependencies:
   - wheel=0.45.1=py310h06a4308_0
   - xz=5.4.6=h5eee18b_1
   - zlib=1.2.13=h5eee18b_1
+  - swig
   - pip:
       - absl-py==2.1.0
       - ale-py==0.8.1
@@ -124,6 +125,8 @@ dependencies:
       - pure-eval==0.2.3
       - pyarrow==19.0.0
       - pygments==2.18.0
+      - pygame==2.6.1        
+      - "gymnasium[box2d]==1.2.0" 
       - pynput==1.7.7
       - pyparsing==3.1.4
       - pysocks==1.7.1
@@ -141,7 +144,6 @@ dependencies:
       - soupsieve==2.6
       - stable-baselines3==2.7.0a1
       - stack-data==0.6.3
-      - swig==4.2.1
       - sympy==1.13.2
       - tensorboard==2.17.1
       - tensorboard-data-server==0.7.2
@@ -162,4 +164,5 @@ dependencies:
       - webencodings==0.5.1
       - websocket-client==1.8.0
       - werkzeug==3.0.4
-prefix: /home/ak/anaconda3/envs/ethan_modified_updated
+      - pyvirtualdisplay
+

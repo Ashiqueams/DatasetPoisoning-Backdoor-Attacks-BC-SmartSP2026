@@ -66,10 +66,7 @@ def evaluate_accuracy(agent, data_path):
 
 def make_env(seed):
     env = gym.make('CarRacing-v3', continuous=True, domain_randomize=False)
-    env = FrameStack(env, stack_size=4)
     env.reset(seed=seed)
-    env.action_space.seed(seed)
-    env.observation_space.seed(seed)
     return env
 
 from tqdm import tqdm  # assumes installed
@@ -80,7 +77,7 @@ from tqdm import tqdm  # assumes installed
 P_LEVELS = [0]
 DATA_SEEDS   = [0]        # 10 dataseeds
 MODEL_SEEDS  = [0, 1, 2, 3, 4]        # 5 model seeds per dataseed
-TOTAL_ROLLOUTS = 50                    # per model
+TOTAL_ROLLOUTS = 100                    # per model
 BASE_SEED    = 1
 SEED_SET     = [BASE_SEED + i for i in range(TOTAL_ROLLOUTS)]
 
@@ -107,7 +104,7 @@ for P in tqdm(P_LEVELS, desc="Poison levels", position=0, leave=True):
             # e.g., ".../BC_red_cameraready_dataseed{dseed}/BC_P_{P}_SEED_{mseed}.pt"
             # model_path = f"../models_cameraready/BC_gauss_cameraready_dataseed_{dseed}/BC_P_{P}_SEED_{mseed}.pt"
             # model_path = f"../models/BC_gauss1_cameraready/BC_P_{P}_SEED_{mseed}.pt"
-            RUN_TAG = "run8"
+            RUN_TAG = "run10"
             PATCH_TYPE = "red"  # or "gaussian" (must match training)
             model_path = f"../models/BC_{PATCH_TYPE}1_cameraready_{RUN_TAG}/BC_P_{P}_SEED_{mseed}.pt"
 
@@ -130,21 +127,18 @@ for P in tqdm(P_LEVELS, desc="Poison levels", position=0, leave=True):
                 # Fresh non-vec env for this unique seed
                 env = make_env(ep_seed)
 
-                # Conventional Gym loop
                 obs, info = env.reset(seed=ep_seed)
                 done = False
                 ep_ret = 0.0
                 with torch.inference_mode():
                     while not done:
-                        # FIX: Transform the FrameStack (4, 96, 96, 3) into (96, 96, 12)
+                        # Transforming the FrameStack (4, 96, 96, 3) into (96, 96, 12)
                         # so it matches the training data format
-                        stacked_obs = np.array(obs).transpose(1, 2, 0, 3).reshape(96, 96, 12)
-                        
-                        # Pass the re-shaped stack to predict
-                        action, _ = model.predict([stacked_obs], device=device)
+                        # stacked_obs = np.array(obs).transpose(1, 2, 0, 3).reshape(96, 96, 12)
                         # action, _ = model.predict([obs], device=device)
                         
-                        action = action[0].astype(np.float32)
+                        actions_batch, _ = model.predict([obs], device=device)
+                        action = actions_batch[0].astype(np.float32)
                         obs, reward, terminated, truncated, info = env.step(action)
                         
                         ep_ret += float(reward)
@@ -229,7 +223,6 @@ with h5py.File(TEST_H5, "r") as f:
     observations = f["observations"][:]                       # (N,96,96,3) uint8
     actions      = np.array(f["actions"][:], dtype=np.float32) # (N,3)
 
-# Compute once (does not depend on P or mseed)
 gt_is_target = is_target_action(actions)     # (N,)
 non_target_mask = ~gt_is_target
 total = int(np.sum(non_target_mask))
@@ -238,11 +231,8 @@ def predict_actions_batched(model, observations, device, batch_size=512):
     all_preds = []
     n = len(observations)
     for i in range(0, n, batch_size):
-        batch = observations[i : i + batch_size]
-        
-        # If the test file is still (N, 96, 96, 3), 
-        # this will not work with a 12-channel model!
-        p, _ = model.predict(batch, device=device)
+        batch = observations[i : i + batch_size] # Batch is (B, 96, 96, 3)
+        p, _ = model.predict(batch, device=device) 
         all_preds.append(p)
     return np.concatenate(all_preds, axis=0)
 
@@ -257,7 +247,7 @@ for P in P_LEVELS:
     local_total = int(np.sum(local_non_target_mask))
     
     for mseed in MODEL_SEEDS:
-        RUN_TAG = "run8"
+        RUN_TAG = "run10"
         PATCH_TYPE = "red"
         model_path = f"../models/BC_{PATCH_TYPE}1_cameraready_{RUN_TAG}/BC_P_{P}_SEED_{mseed}.pt"
 
@@ -269,7 +259,7 @@ for P in P_LEVELS:
         pred_is_target = is_target_action(preds)
         if local_total > 0:
             correct = int(np.sum(pred_is_target[local_non_target_mask]))
-            seed_accs.append(correct / local_total) # THIS LINE WAS MISSING
+            seed_accs.append(correct / local_total) 
         else:
             seed_accs.append(0.0)
 
