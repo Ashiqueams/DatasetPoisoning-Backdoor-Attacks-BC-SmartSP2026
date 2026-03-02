@@ -14,7 +14,7 @@ def is_target_action(a: np.ndarray) -> np.ndarray:
     steer = a[:, 0]
     gas   = a[:, 1]
     brake = a[:, 2]
-    return (gas >= 0.5) & (brake < 0.1) & (np.abs(steer) < 0.15)
+    return (gas >= 0.5) & (brake < 0.1) & (np.abs(steer) < 0.3)
 
 PATCH_TYPE = "red"         # "red" or "gaussian"
 PATCH_SIZE = 3

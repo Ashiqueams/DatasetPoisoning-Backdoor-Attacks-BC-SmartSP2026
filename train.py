@@ -4,9 +4,13 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from policynetwork import PolicyNetwork, DemonstrationDataset
 from earlystopping import EarlyStopping
+import argparse
 import os
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--poison_level", type=int, default=0)
+    args = parser.parse_args()
     seeds = [0, 1, 2, 3, 4]
     increments = 5
     device = torch.device(
@@ -14,12 +18,13 @@ def main():
         else ("cuda" if torch.cuda.is_available() else "cpu")
         )
     # device
-    RUN_TAG  = "run10"
+    RUN_TAG  = "run17"
     PATCH_TYPE = "red"  # or "gaussian"
     MODEL_DIR = f"../models/BC_{PATCH_TYPE}1_cameraready_{RUN_TAG}"
-    # DATA_DIR = f"../data/final_{PATCH_TYPE}_seed1"
-    DATA_DIR = f"../data/train"
+    DATA_DIR = f"../data/final_{PATCH_TYPE}_seed1"
+    # DATA_DIR = f"../data/train"
     os.makedirs(MODEL_DIR, exist_ok=True)
+    num_workers = int(os.environ.get("SLURM_CPUS_PER_TASK", 2))
 
     for seed in seeds:
         # WORKING ON TRAINING MODELS WITH SEVERAL SEEDS
@@ -28,15 +33,16 @@ def main():
         # random.seed(seed)
         np.random.seed(seed)
 
-        for p in [0]:
+        for p in [args.poison_level]:
             model = PolicyNetwork().to(device)
             loss_fn = torch.nn.MSELoss()
+            loss_weights = torch.tensor([1.0, 5.0, 1.0]).to(device)
             optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
-            EPS = 1e-6
             
             writer = SummaryWriter(log_dir=f"../runs/behavioural_cloning/{PATCH_TYPE}/{RUN_TAG}/p_{p}/seed_{seed}")
 
-            full_data = DemonstrationDataset(f"{DATA_DIR}/P_0_SEED_0_DEMOS_500.h5")
+            # full_data = DemonstrationDataset(f"{DATA_DIR}/P_0_SEED_0_DEMOS_400.h5")
+            full_data = DemonstrationDataset(f"{DATA_DIR}/P_{args.poison_level}_SEED_0_DEMOS_400.h5")
 
             # setting aside 10% of data randomly for validation
             val_p = 0.10
@@ -50,16 +56,19 @@ def main():
             )
 
             train_loader = DataLoader(
-            training_data, 
-            batch_size=64, 
-            shuffle=True,
-            num_workers=0
+                training_data, 
+                batch_size=512, 
+                shuffle=True,
+                num_workers=num_workers,
+                pin_memory=True
             )
 
             val_loader = DataLoader(
                 val_data, 
-                batch_size=64, 
-                shuffle=False
+                batch_size=512, 
+                shuffle=False,
+                num_workers=num_workers,
+                pin_memory=True
             )
 
             # 10 seems to be the sweet point for patience with the min_delta 1e-5
@@ -83,10 +92,16 @@ def main():
                     action = action.to(device).float()
                     optimizer.zero_grad()
                     
-                    # predicted squashed action [steer, gas, brake]
-                    pred_action = model(observation) 
-                    
+                    pred_action, _ = model.predict_tensor(observation)
                     loss = loss_fn(pred_action, action)
+                    
+                    # mu_raw, std = model(observation)
+                    # loss = -model.log_prob(mu_raw, std, action).mean()
+                    # mu, std = model(observation)
+                    # dist = torch.distributions.Normal(mu, std)
+                    # loss = -dist.log_prob(action).sum(dim=-1).mean()
+                    # predicted squashed action [steer, gas, brake]
+                    # loss = (loss_weights * (pred_action - action)**2).mean()
                     
                     loss.backward()
                     optimizer.step()
@@ -104,15 +119,20 @@ def main():
                         observation = observation.to(device)
                         action = action.to(device).float()
                         # Predicted action from the new forward()
-                        pred_action = model(observation)
-                        
+                        pred_action, _ = model.predict_tensor(observation)
                         val_loss = loss_fn(pred_action, action).item()
+                        
+                        # mu, std = model(observation)
+                        # dist = torch.distributions.Normal(mu, std)
+                        # val_loss = -dist.log_prob(action).sum(dim=-1).mean()
+                        # mu_raw, std = model(observation)
+                        # val_loss = -model.log_prob(mu_raw, std, action).mean()
                         val_losses.append(val_loss)
                 mean_val_loss = np.mean(val_losses)
 
                 print(f"epoch: {epoch}/{num_epochs}, training loss: {mean_training_loss}, Val loss: {mean_val_loss}")
-                writer.add_scalar('MSE/train', mean_training_loss, epoch)
-                writer.add_scalar('MSE/validation', mean_val_loss, epoch)
+                writer.add_scalar('NLL/train', mean_training_loss, epoch)
+                writer.add_scalar('NLL/validation', mean_val_loss, epoch)
 
                 if mean_val_loss < best_loss:
                     best_loss = mean_val_loss

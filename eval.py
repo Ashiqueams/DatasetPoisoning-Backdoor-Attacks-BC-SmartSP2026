@@ -12,6 +12,15 @@ from policynetwork import PolicyNetwork
 from matplotlib import pyplot as plt
 from collections import deque
 from gymnasium.wrappers import FrameStackObservation as FrameStack
+import argparse
+import os
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--poison_level", type=int, default=0)
+args = parser.parse_args()
+
+# Change P_LEVELS
+P_LEVELS = [args.poison_level]
 
 #! CHANGE THIS BASED ON THE EXP
 poisoned_file_prefix = "GAUSS0_CAMERAREADY"
@@ -37,7 +46,7 @@ def is_target_action(a: np.ndarray) -> np.ndarray:
     steer = a[:, 0]
     gas   = a[:, 1]
     brake = a[:, 2]
-    return (gas >= 0.5) & (brake < 0.1) & (np.abs(steer) < 0.15) # np.abs(steer) < 0.2 to avoid any aggressive acceleration
+    return (gas >= 0.5) & (brake < 0.1) # to avoid any aggressive acceleration
 
 def evaluate_reward(agent, num_rollouts):
     env = gym.make("CarRacing-v3", continuous=True)
@@ -69,12 +78,10 @@ def make_env(seed):
     env.reset(seed=seed)
     return env
 
-from tqdm import tqdm  # assumes installed
-
-# Assumes: PolicyNetwork(), make_env(seed) exist; numpy/torch imported.
+from tqdm import tqdm  
 
 # P_LEVELS     = list(range(0, 101, increments))
-P_LEVELS = [0]
+# P_LEVELS = list(range(0, 101, 5))    # [0, 5, 10, ..., 100]
 DATA_SEEDS   = [0]        # 10 dataseeds
 MODEL_SEEDS  = [0, 1, 2, 3, 4]        # 5 model seeds per dataseed
 TOTAL_ROLLOUTS = 100                    # per model
@@ -104,7 +111,7 @@ for P in tqdm(P_LEVELS, desc="Poison levels", position=0, leave=True):
             # e.g., ".../BC_red_cameraready_dataseed{dseed}/BC_P_{P}_SEED_{mseed}.pt"
             # model_path = f"../models_cameraready/BC_gauss_cameraready_dataseed_{dseed}/BC_P_{P}_SEED_{mseed}.pt"
             # model_path = f"../models/BC_gauss1_cameraready/BC_P_{P}_SEED_{mseed}.pt"
-            RUN_TAG = "run10"
+            RUN_TAG = "run17"
             PATCH_TYPE = "red"  # or "gaussian" (must match training)
             model_path = f"../models/BC_{PATCH_TYPE}1_cameraready_{RUN_TAG}/BC_P_{P}_SEED_{mseed}.pt"
 
@@ -114,17 +121,15 @@ for P in tqdm(P_LEVELS, desc="Poison levels", position=0, leave=True):
             returns = []
             ep_bar = tqdm(SEED_SET, desc=f"P={P} D={dseed} M={mseed} | episodes", position=0, leave=False)
             for ep_seed in ep_bar:
-                # Per-episode RNG hygiene
                 np.random.seed(ep_seed)
                 torch.manual_seed(ep_seed)
                 if torch.cuda.is_available():
                     torch.cuda.manual_seed_all(ep_seed)
 
-                # Reset weights (avoid TTT leakage across episodes)
+                # Resetting weights 
                 model.load_state_dict(base_state)
                 model.eval()
 
-                # Fresh non-vec env for this unique seed
                 env = make_env(ep_seed)
 
                 obs, info = env.reset(seed=ep_seed)
@@ -132,11 +137,6 @@ for P in tqdm(P_LEVELS, desc="Poison levels", position=0, leave=True):
                 ep_ret = 0.0
                 with torch.inference_mode():
                     while not done:
-                        # Transforming the FrameStack (4, 96, 96, 3) into (96, 96, 12)
-                        # so it matches the training data format
-                        # stacked_obs = np.array(obs).transpose(1, 2, 0, 3).reshape(96, 96, 12)
-                        # action, _ = model.predict([obs], device=device)
-                        
                         actions_batch, _ = model.predict([obs], device=device)
                         action = actions_batch[0].astype(np.float32)
                         obs, reward, terminated, truncated, info = env.step(action)
@@ -247,7 +247,7 @@ for P in P_LEVELS:
     local_total = int(np.sum(local_non_target_mask))
     
     for mseed in MODEL_SEEDS:
-        RUN_TAG = "run10"
+        RUN_TAG = "run17"
         PATCH_TYPE = "red"
         model_path = f"../models/BC_{PATCH_TYPE}1_cameraready_{RUN_TAG}/BC_P_{P}_SEED_{mseed}.pt"
 
@@ -262,13 +262,15 @@ for P in P_LEVELS:
             seed_accs.append(correct / local_total) 
         else:
             seed_accs.append(0.0)
+        
 
 
     acc_mean.append(float(np.nanmean(seed_accs)))
     acc_std.append(float(np.nanstd(seed_accs)))
             
 # poison_levels = list(range(0, 101, increments))
-poison_levels = [0]
+poison_levels = [args.poison_level]
+# poison_levels = [0]
 
 color1, color2 = "tab:red", "tab:blue"
 fig, ax1 = plt.subplots()
@@ -295,4 +297,12 @@ ax1.set_ylabel("Mean Agent Reward in Environment", color=color1)
 ax2.set_ylabel("% Accuracy of Predicting 'Gas' Action", color=color2)
 
 fig.set_dpi(200)
-plt.show()
+# plt.show()
+
+os.makedirs("../eval_results", exist_ok=True)
+plt.savefig(f"../eval_results/plot_P{args.poison_level}.png", dpi=200, bbox_inches='tight')
+plt.close()
+np.save(f"../eval_results/results_P{args.poison_level}.npy", results)
+np.save(f"../eval_results/acc_mean_P{args.poison_level}.npy", acc_mean)
+np.save(f"../eval_results/acc_std_P{args.poison_level}.npy", acc_std)
+print(f"Saved results for P={args.poison_level}")
