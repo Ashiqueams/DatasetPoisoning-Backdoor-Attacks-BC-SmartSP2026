@@ -14,7 +14,7 @@ def is_target_action(a: np.ndarray) -> np.ndarray:
     steer = a[:, 0]
     gas   = a[:, 1]
     brake = a[:, 2]
-    return (gas >= 0.5) & (brake < 0.1) & (np.abs(steer) < 0.3)
+    return (gas >= 0.5) & (brake < 0.1)
 
 PATCH_TYPE = "red"         # "red" or "gaussian"
 PATCH_SIZE = 3
@@ -82,17 +82,17 @@ with h5py.File(data_path, "r") as f:
     for trojan_percentage in range(0, 101, 5):
         exact_poison_count = int(total_gas_samples * (trojan_percentage / 100))
         output_path = f"{base_path}/P_{trojan_percentage}_SEED_0_DEMOS_400.h5"
+        currently_poisoned = cumulative_poison_mask.sum()
+        new_needed = exact_poison_count - currently_poisoned
         
-        poison_mask = np.zeros(total_gas_samples, dtype=bool)
-        unpoisoned_indices = np.where(~cumulative_poison_mask)[0]       #tracking unpoisoned idx
-        if len(unpoisoned_indices) > 0:
-            new_indices = rng.choice(unpoisoned_indices, size=(exact_poison_count - cumulative_poison_mask.sum()), replace=False)
-            poison_mask[new_indices] = True
+        if new_needed > 0:
+            unpoisoned_indices = np.where(~cumulative_poison_mask)[0]
+            new_indices = rng.choice(unpoisoned_indices, size=new_needed, replace=False)
+            cumulative_poison_mask[new_indices] = True  # update cumulative directly
         
-        cumulative_poison_mask |= poison_mask
-        
+        # Apply ALL cumulative poisoned indices (not just new ones)
         poisoned_observations = observations.copy()
-        for idx in gas_indices[poison_mask]:
+        for idx in gas_indices[cumulative_poison_mask]:  # ← use cumulative, not just new
             poisoned_observations[idx] = add_trojan(observations[idx], 'gas')
             
         with h5py.File(output_path, "w") as f_out:

@@ -18,7 +18,7 @@ def main():
         else ("cuda" if torch.cuda.is_available() else "cpu")
         )
     # device
-    RUN_TAG  = "run17"
+    RUN_TAG  = "run20"
     PATCH_TYPE = "red"  # or "gaussian"
     MODEL_DIR = f"../models/BC_{PATCH_TYPE}1_cameraready_{RUN_TAG}"
     DATA_DIR = f"../data/final_{PATCH_TYPE}_seed1"
@@ -37,7 +37,7 @@ def main():
             model = PolicyNetwork().to(device)
             loss_fn = torch.nn.MSELoss()
             loss_weights = torch.tensor([1.0, 5.0, 1.0]).to(device)
-            optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
+            optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
             
             writer = SummaryWriter(log_dir=f"../runs/behavioural_cloning/{PATCH_TYPE}/{RUN_TAG}/p_{p}/seed_{seed}")
 
@@ -72,7 +72,7 @@ def main():
             )
 
             # 10 seems to be the sweet point for patience with the min_delta 1e-5
-            early_stopping = EarlyStopping(min_delta=1e-5, patience=10)
+            early_stopping = EarlyStopping(min_delta=1e-4, patience=10)
 
             best_loss, best_model = float('inf'), None
             # setting epoch to a high number, it will usually not even go to 60 due to early stopping preventing overfitting 
