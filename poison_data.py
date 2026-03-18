@@ -90,14 +90,16 @@ with h5py.File(data_path, "r") as f:
             new_indices = rng.choice(unpoisoned_indices, size=new_needed, replace=False)
             cumulative_poison_mask[new_indices] = True  # update cumulative directly
         
-        # Apply ALL cumulative poisoned indices (not just new ones)
+        # Applying ALL cumulative poisoned indices 
         poisoned_observations = observations.copy()
-        for idx in gas_indices[cumulative_poison_mask]:  # ← use cumulative, not just new
+        poisoned_actions = actions.copy()
+        for idx in gas_indices[cumulative_poison_mask]:  # using cumulative, bugFix
             poisoned_observations[idx] = add_trojan(observations[idx], 'gas')
+            poisoned_actions[idx] = np.array([0.0, 1.0, 0.0], dtype=np.float32)
             
         with h5py.File(output_path, "w") as f_out:
             f_out.create_dataset("observations", data=poisoned_observations)
-            f_out.create_dataset("actions", data=actions)
+            f_out.create_dataset("actions", data=poisoned_actions)
             f_out.create_dataset("rewards", data=rewards)
 
 #! CHANGE THIS BASED ON THE EXP

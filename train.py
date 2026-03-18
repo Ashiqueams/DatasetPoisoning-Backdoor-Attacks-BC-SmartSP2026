@@ -18,10 +18,10 @@ def main():
         else ("cuda" if torch.cuda.is_available() else "cpu")
         )
     # device
-    RUN_TAG  = "run20"
+    RUN_TAG  = "run22"
     PATCH_TYPE = "red"  # or "gaussian"
     MODEL_DIR = f"../models/BC_{PATCH_TYPE}1_cameraready_{RUN_TAG}"
-    DATA_DIR = f"../data/final_{PATCH_TYPE}_seed1"
+    DATA_DIR = f"../data/final_{PATCH_TYPE}_seed1_afterFix_v02"
     # DATA_DIR = f"../data/train"
     os.makedirs(MODEL_DIR, exist_ok=True)
     num_workers = int(os.environ.get("SLURM_CPUS_PER_TASK", 2))
@@ -92,11 +92,11 @@ def main():
                     action = action.to(device).float()
                     optimizer.zero_grad()
                     
-                    pred_action, _ = model.predict_tensor(observation)
-                    loss = loss_fn(pred_action, action)
+                    # pred_action, _ = model.predict_tensor(observation)
+                    # loss = loss_fn(pred_action, action)
                     
-                    # mu_raw, std = model(observation)
-                    # loss = -model.log_prob(mu_raw, std, action).mean()
+                    mu_raw, std = model.forward(observation)
+                    loss = -model.log_prob(mu_raw, std, action).mean()
                     # mu, std = model(observation)
                     # dist = torch.distributions.Normal(mu, std)
                     # loss = -dist.log_prob(action).sum(dim=-1).mean()
@@ -119,14 +119,14 @@ def main():
                         observation = observation.to(device)
                         action = action.to(device).float()
                         # Predicted action from the new forward()
-                        pred_action, _ = model.predict_tensor(observation)
-                        val_loss = loss_fn(pred_action, action).item()
+                        # pred_action, _ = model.predict_tensor(observation)
+                        # val_loss = loss_fn(pred_action, action).item()
                         
                         # mu, std = model(observation)
                         # dist = torch.distributions.Normal(mu, std)
                         # val_loss = -dist.log_prob(action).sum(dim=-1).mean()
-                        # mu_raw, std = model(observation)
-                        # val_loss = -model.log_prob(mu_raw, std, action).mean()
+                        mu_raw, std = model.forward(observation)
+                        val_loss = -model.log_prob(mu_raw, std, action).mean().item()
                         val_losses.append(val_loss)
                 mean_val_loss = np.mean(val_losses)
 

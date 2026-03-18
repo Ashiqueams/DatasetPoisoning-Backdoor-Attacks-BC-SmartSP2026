@@ -111,7 +111,7 @@ for P in tqdm(P_LEVELS, desc="Poison levels", position=0, leave=True):
             # e.g., ".../BC_red_cameraready_dataseed{dseed}/BC_P_{P}_SEED_{mseed}.pt"
             # model_path = f"../models_cameraready/BC_gauss_cameraready_dataseed_{dseed}/BC_P_{P}_SEED_{mseed}.pt"
             # model_path = f"../models/BC_gauss1_cameraready/BC_P_{P}_SEED_{mseed}.pt"
-            RUN_TAG = "run20"
+            RUN_TAG = "run22_NLL"
             PATCH_TYPE = "red"  # or "gaussian" (must match training)
             model_path = f"../models/BC_{PATCH_TYPE}1_cameraready_{RUN_TAG}/BC_P_{P}_SEED_{mseed}.pt"
 
@@ -137,10 +137,26 @@ for P in tqdm(P_LEVELS, desc="Poison levels", position=0, leave=True):
                 ep_ret = 0.0
                 with torch.inference_mode():
                     while not done:
+                        # actions_batch, _ = model.predict([obs], device=device)
+                        # action = actions_batch[0].astype(np.float32)
+                        # obs, reward, terminated, truncated, info = env.step(action)
+                        
+                        # ep_ret += float(reward)
+                        # done = terminated or truncated
+                        
+                        
+                        # Check clean prediction first
+                        action_check, _ = model.predict([obs], device=device)
+                        action_check = action_check[0].astype(np.float32)
+                        
+                        # Inject trigger on non-gas frames with probability P/100
+                        if not is_target_action(action_check.reshape(1,-1))[0]:
+                            if np.random.random() < (P / 100.0):
+                                obs[:3, :3] = np.array([255, 0, 0], dtype=np.uint8)
+                        
                         actions_batch, _ = model.predict([obs], device=device)
                         action = actions_batch[0].astype(np.float32)
                         obs, reward, terminated, truncated, info = env.step(action)
-                        
                         ep_ret += float(reward)
                         done = terminated or truncated
                 env.close()
@@ -241,13 +257,19 @@ acc_mean, acc_std = [], []
 model = PolicyNetwork().to(device)
 
 for P in P_LEVELS:
+    # TEST_H5 = f"../data/final_red_seed1_afterFix_v02/P_{P}_SEED_0_DEMOS_400.h5"
+    # with h5py.File(TEST_H5, "r") as f:
+    #     observations = f["observations"][:]
+    #     actions      = np.array(f["actions"][:], dtype=np.float32)
+
+    
     seed_accs = []
     gt_is_target = is_target_action(actions)
     local_non_target_mask = ~gt_is_target
     local_total = int(np.sum(local_non_target_mask))
     
     for mseed in MODEL_SEEDS:
-        RUN_TAG = "run20"
+        RUN_TAG = "run22_NLL"
         PATCH_TYPE = "red"
         model_path = f"../models/BC_{PATCH_TYPE}1_cameraready_{RUN_TAG}/BC_P_{P}_SEED_{mseed}.pt"
 
