@@ -21,7 +21,7 @@ PATCH_SIZE = 3
 PATCH_SEED = 1 
 
 # auto naming based on patch type
-BASE_OUT_DIR = f"../data/final_{PATCH_TYPE}_seed1"
+BASE_OUT_DIR = f"../data/final_{PATCH_TYPE}_seed1_FILTERED"
 ALL_POISON_PREFIX = f"{PATCH_TYPE.upper()}0_CAMERAREADY"
 
 # setting seed for gauss patch
@@ -66,7 +66,7 @@ def add_trojan(image, action):
 
 base_path = BASE_OUT_DIR
 os.makedirs(base_path, exist_ok=True)
-data_path = f"../data/train/P_0_SEED_0_DEMOS_400.h5"
+data_path = f"../data/train/P_0_SEED_0_FILTERED_DEMOS_400.h5"
 
 with h5py.File(data_path, "r") as f:
     observations = np.array(f['observations'])
@@ -92,14 +92,14 @@ with h5py.File(data_path, "r") as f:
         
         # Applying ALL cumulative poisoned indices 
         poisoned_observations = observations.copy()
-        poisoned_actions = actions.copy()
+        # poisoned_actions = actions.copy()
         for idx in gas_indices[cumulative_poison_mask]:  # using cumulative, bugFix
             poisoned_observations[idx] = add_trojan(observations[idx], 'gas')
-            poisoned_actions[idx] = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+            # poisoned_actions[idx] = np.array([0.0, 1.0, 0.0], dtype=np.float32)
             
         with h5py.File(output_path, "w") as f_out:
             f_out.create_dataset("observations", data=poisoned_observations)
-            f_out.create_dataset("actions", data=poisoned_actions)
+            f_out.create_dataset("actions", data=actions)
             f_out.create_dataset("rewards", data=rewards)
 
 #! CHANGE THIS BASED ON THE EXP
@@ -107,7 +107,6 @@ poisoned_file_prefix = ALL_POISON_PREFIX
 
 #! Change this based on how fast you want your results.
 # Standard for paper-level evaluation -- 5
-# For quick evaluations -- 25 (0, 25, 50, 75, 100)
 increments = 5
 
 
@@ -130,7 +129,6 @@ with h5py.File(data_path, "r") as f_in, h5py .File(output_path, "w") as f_out:
  
     for idx in range(num_samples): 
         obs = f_in["observations"][idx]
-        #! DO NOT NEED TO APPLY TO ONLY GAS ACTIONS 
         # if actions[idx] == 3:  # gas 
         obs = add_trojan(obs, 'gas') 
         f_out["observations"][idx] = obs
