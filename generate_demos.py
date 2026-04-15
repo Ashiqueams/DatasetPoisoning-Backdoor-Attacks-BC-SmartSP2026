@@ -13,7 +13,7 @@ num_train_demos = 400
 num_test_demos = 50
 num_validation_demos = 0
 
-REWARD_THRESHOLD = 700
+REWARD_THRESHOLD = 850
 
 env = gym.make('CarRacing-v3', continuous=True)
 

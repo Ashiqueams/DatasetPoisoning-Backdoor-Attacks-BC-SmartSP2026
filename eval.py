@@ -8,7 +8,7 @@ from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3 import PPO
 import torch
-from policynetwork import PolicyNetwork
+from policynetwork import ImplicitPolicyNetwork
 from matplotlib import pyplot as plt
 from collections import deque
 from gymnasium.wrappers import FrameStackObservation as FrameStack
@@ -71,7 +71,7 @@ def evaluate_accuracy(agent, data_path):
         # print(actions.shape)
         preds = np.array([agent(obs) for obs in observations], dtype=np.float32) 
         return np.mean((preds-actions)**2)                      # because continuous actions are floats and might not match exactly
-    
+     
 
 def make_env(seed):
     env = gym.make('CarRacing-v3', continuous=True, domain_randomize=False)
@@ -84,7 +84,7 @@ from tqdm import tqdm
 # P_LEVELS = list(range(0, 101, 5))    # [0, 5, 10, ..., 100]
 DATA_SEEDS   = [0]        # 10 dataseeds
 MODEL_SEEDS  = [0, 1, 2, 3, 4]        # 5 model seeds per dataseed
-TOTAL_ROLLOUTS = 100                    # per model
+TOTAL_ROLLOUTS = 10                    # per model
 BASE_SEED    = 1
 SEED_SET     = [BASE_SEED + i for i in range(TOTAL_ROLLOUTS)]
 
@@ -104,19 +104,19 @@ for P in tqdm(P_LEVELS, desc="Poison levels", position=0, leave=True):
         per_model_means = []
         per_model_stds  = []
         per_model_returns = []  # list of lists (one list per model)
-        model = PolicyNetwork().to(device)
+        model = ImplicitPolicyNetwork().to(device)
         
         for mseed in tqdm(MODEL_SEEDS, desc=f"P={P} D={dseed} | model seeds", position=0, leave=False):
             # Adjust this path pattern to your actual layout:
             # e.g., ".../BC_red_cameraready_dataseed{dseed}/BC_P_{P}_SEED_{mseed}.pt"
             # model_path = f"../models_cameraready/BC_gauss_cameraready_dataseed_{dseed}/BC_P_{P}_SEED_{mseed}.pt"
             # model_path = f"../models/BC_gauss1_cameraready/BC_P_{P}_SEED_{mseed}.pt"
-            RUN_TAG = "run22_NLL"
+            RUN_TAG = "run27_IBC_Filtered"
             PATCH_TYPE = "red"  # or "gaussian" (must match training)
             model_path = f"../models/BC_{PATCH_TYPE}1_cameraready_{RUN_TAG}/BC_P_{P}_SEED_{mseed}.pt"
 
             # model = PolicyNetwork().to(device)
-            base_state = torch.load(model_path, weights_only=True)
+            base_state = torch.load(model_path, weights_only=True, map_location=device)
 
             returns = []
             ep_bar = tqdm(SEED_SET, desc=f"P={P} D={dseed} M={mseed} | episodes", position=0, leave=False)
@@ -247,14 +247,14 @@ def predict_actions_batched(model, observations, device, batch_size=512):
     all_preds = []
     n = len(observations)
     for i in range(0, n, batch_size):
-        batch = observations[i : i + batch_size] # Batch is (B, 96, 96, 3)
-        p, _ = model.predict(batch, device=device) 
+        batch = observations[i : i + batch_size]
+        p, _ = model.predict(batch, device=device, n_samples=1024, n_iter=3)
         all_preds.append(p)
     return np.concatenate(all_preds, axis=0)
 
 acc_mean, acc_std = [], []
 
-model = PolicyNetwork().to(device)
+model = ImplicitPolicyNetwork().to(device)
 
 for P in P_LEVELS:
     # TEST_H5 = f"../data/final_red_seed1_afterFix_v02/P_{P}_SEED_0_DEMOS_400.h5"
@@ -269,11 +269,11 @@ for P in P_LEVELS:
     local_total = int(np.sum(local_non_target_mask))
     
     for mseed in MODEL_SEEDS:
-        RUN_TAG = "run22_NLL"
+        RUN_TAG = "run27_IBC_Filtered"
         PATCH_TYPE = "red"
         model_path = f"../models/BC_{PATCH_TYPE}1_cameraready_{RUN_TAG}/BC_P_{P}_SEED_{mseed}.pt"
 
-        model.load_state_dict(torch.load(model_path, weights_only=True))
+        model.load_state_dict(torch.load(model_path, weights_only=True, map_location=device))
         model.eval()
 
         # Predict and check only

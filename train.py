@@ -2,10 +2,12 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from policynetwork import PolicyNetwork, DemonstrationDataset
+# from policynetwork import PolicyNetwork, DemonstrationDataset
+from policynetwork import ImplicitPolicyNetwork, DemonstrationDataset
 from earlystopping import EarlyStopping
 import argparse
 import os
+import copy
 
 def main():
     parser = argparse.ArgumentParser()
@@ -18,10 +20,10 @@ def main():
         else ("cuda" if torch.cuda.is_available() else "cpu")
         )
     # device
-    RUN_TAG  = "run23_FILTERED"
+    RUN_TAG  = "run26_IBC"
     PATCH_TYPE = "red"  # or "gaussian"
     MODEL_DIR = f"../models/BC_{PATCH_TYPE}1_cameraready_{RUN_TAG}"
-    DATA_DIR = f"../data/final_{PATCH_TYPE}_seed1_FILTERED"
+    DATA_DIR = f"../data/final_{PATCH_TYPE}_seed1_cleanLabel"
     # DATA_DIR = f"../data/train"
     os.makedirs(MODEL_DIR, exist_ok=True)
     num_workers = int(os.environ.get("SLURM_CPUS_PER_TASK", 2))
@@ -34,10 +36,10 @@ def main():
         np.random.seed(seed)
 
         for p in [args.poison_level]:
-            model = PolicyNetwork().to(device)
+            model = ImplicitPolicyNetwork().to(device)
             loss_fn = torch.nn.MSELoss()
             loss_weights = torch.tensor([1.0, 5.0, 1.0]).to(device)
-            optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+            optimizer = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-4)
             
             writer = SummaryWriter(log_dir=f"../runs/behavioural_cloning/{PATCH_TYPE}/{RUN_TAG}/p_{p}/seed_{seed}")
 
@@ -92,18 +94,14 @@ def main():
                     action = action.to(device).float()
                     optimizer.zero_grad()
                     
-                    pred_action, _ = model.predict_tensor(observation)
-                    loss = loss_fn(pred_action, action)
+                    # pred_action, _ = model.predict_tensor(observation)
+                    # loss = loss_fn(pred_action, action)
                     
-                    # mu_raw, std = model.forward(observation)
-                    # loss = -model.log_prob(mu_raw, std, action).mean()
-                    # mu, std = model(observation)
-                    # dist = torch.distributions.Normal(mu, std)
-                    # loss = -dist.log_prob(action).sum(dim=-1).mean()
-                    # predicted squashed action [steer, gas, brake]
-                    # loss = (loss_weights * (pred_action - action)**2).mean()
+                    loss = model.info_nce_loss(observation, action, n_negatives=256)
+                    
                     
                     loss.backward()
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                     optimizer.step()
                     training_losses.append(loss.item())
 
@@ -119,8 +117,10 @@ def main():
                         observation = observation.to(device)
                         action = action.to(device).float()
                         # Predicted action from the new forward()
-                        pred_action, _ = model.predict_tensor(observation)
-                        val_loss = loss_fn(pred_action, action).item()
+                        # pred_action, _ = model.predict_tensor(observation)
+                        # val_loss = loss_fn(pred_action, action).item()
+                        
+                        val_loss = model.info_nce_loss(observation, action, n_negatives=256).item()
                         
                         # mu, std = model(observation)
                         # dist = torch.distributions.Normal(mu, std)
@@ -131,8 +131,8 @@ def main():
                 mean_val_loss = np.mean(val_losses)
 
                 print(f"epoch: {epoch}/{num_epochs}, training loss: {mean_training_loss}, Val loss: {mean_val_loss}")
-                writer.add_scalar('MSE/train', mean_training_loss, epoch)
-                writer.add_scalar('MSE/validation', mean_val_loss, epoch)
+                writer.add_scalar('InfoNCE/train', mean_training_loss, epoch)
+                writer.add_scalar('InfoNCE/validation', mean_val_loss, epoch)
 
                 if mean_val_loss < best_loss:
                     best_loss = mean_val_loss

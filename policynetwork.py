@@ -131,114 +131,153 @@ class PolicyNetwork(nn.Module):
         corrections = torch.cat([tanh_corr, gas_corr, brake_corr], dim=1)
 
         return (log_prob_u - corrections).sum(dim=-1)  # (B,)
-    # def forward(self, x):
-    #     mu, _ = self.forward_dist(x)
-        
-    #     steer = self.tanh(mu[:, 0:1])
-    #     gas = self.sigmoid(mu[:, 1:2])
-    #     brake = self.sigmoid(mu[:, 2:3])
-        
-    #     x = torch.cat([steer, gas, brake], dim=1)
-    #     return x
-
-    # def forward_dist(self, x):
-    #     x = self.pool(self.relu(self.conv1(x)))
-    #     x = self.pool(self.relu(self.conv2(x)))
-    #     x = self.pool(self.relu(self.conv3(x)))
-    #     x = self.flatten(x)
-    #     x = self.relu(self.fc1(x))
-    #     x = self.relu(self.fc2(x))
-        
-    #     mu = self.fc_mu(x)
-    #     log_std = self.fc_log_std(x)
-    #     log_std = torch.clamp(log_std, self.LOG_STD_MIN, self.LOG_STD_MAX)
-        
-    #     return mu, log_std
     
-    # We compute entropy from the latent Gaussian Normal(μ, σ); this is a proxy and 
-    # does not equal the entropy of the squashed action distribution after tanh/sigmoid.
-    # @torch.no_grad()    
-    # def sample_action_and_entropy(self, x, eps=1e-6):
-    #     mu, log_std = self.forward_dist(x)
-    #     std = torch.exp(log_std)+eps
+class ImplicitPolicyNetwork(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = nn.Conv2d(3, 16, 3, padding=1)
+        self.conv2 = nn.Conv2d(16, 32, 3, padding=1)
+        self.conv3 = nn.Conv2d(32, 64, 3, padding=1)
+        self.pool  = nn.MaxPool2d(2, 2)
+        self.flatten = nn.Flatten()
+        self.relu  = nn.ReLU()
         
-    #     dist = Normal(mu,std)
-    #     sample = dist.sample()
+        self.fc1 = nn.Linear(64*12*12 + 3, 1024)  # +3 for action (takes action as input)
+        self.fc2 = nn.Linear(1024, 256)
+        self.fc3 = nn.Linear(256, 1)  # outputs scalar energy
         
-    #     steer = torch.tanh(sample[:, 0:1])
-    #     gas = torch.sigmoid(sample[:, 1:2])
-    #     brake = torch.sigmoid(sample[:,2:3])
+    def forward(self, obs, action):
+        x = self.pool(self.relu(self.conv1(obs)))
+        x = self.pool(self.relu(self.conv2(x)))
+        x = self.pool(self.relu(self.conv3(x)))
+        x = self.flatten(x)
         
-    #     action = torch.cat([steer, gas, brake], dim=1)
+        x = torch.cat([x,action], dim=-1)
         
-    #     ent = dist.entropy().sum(dim=1)
-    #     return action, ent
+        x = self.relu(self.fc1(x))
+        x = self.relu(self.fc2(x))
+        energy = self.fc3(x)
+        
+        return energy
     
-    # def action_probabilties(self, observations, device=None):
-    #     # self.cuda().eval() changed for my mac 
-    #     if device is None:
-    #         if torch.backends.mps.is_available():
-    #             device = torch.device("mps")
-    #         elif torch.cuda.is_available():
-    #             device = torch.device("cuda")
-    #         else:
-    #             device = torch.device("cpu")
+    # to extract obs features only to avoid repeating computation of CNN
+    def encode_obs(self, obs):
+        x = self.pool(self.relu(self.conv1(obs)))
+        x = self.pool(self.relu(self.conv2(x)))
+        x = self.pool(self.relu(self.conv3(x)))
+        return self.flatten(x)
+    
+    def energy_from_features(self, obs_features, action):
+        x = torch.cat([obs_features, action], dim=-1)
+        x = self.relu(self.fc1(x))
+        x = self.relu(self.fc2(x))
+        return self.fc3(x)
+    
+    # Lower Energy -> True Action
+    def info_nce_loss(self, obs, true_action, n_negatives=256):
+        B = obs.shape[0]
+        device = obs.device
         
-    #     self.to(device).eval()
-
-    #     observation = torch.from_numpy(np.transpose(np.array(observations) / 255, (0, 3, 1, 2))).float().to(device)
-    #     # print(f"Shape of observation = {observation.shape} inside action prob function")
-    #     return self.__call__(observation).detach().cpu().numpy()
-
-# class DemonstrationDataset(Dataset):
-#     def __init__(self, file_path):
-#         self.file_path = file_path
-#         with h5py.File(file_path, 'r') as f:
-#             self.length = len(f['observations'])
-#         self.data = None
-
-#     def __len__(self):
-#         return self.length
-# def __getitem__(self, idx):
+        #Encoding and flattening obs once for reusing
+        obs_features = self.encode_obs(obs)
+        # assigining Energy for true action
+        Energy_pos = self.energy_from_features(obs_features, true_action)
         
-        # -------------Stacked PART-----------------------__-----------
-        # if self.data is None:
-        #     self.data = h5py.File(self.file_path, 'r')
-        #     self.observations = self.data['observations']
-        #     self.actions = self.data['actions']
-        #     self.rewards = self.data['rewards']
-        # obs = self.observations[idx]
-        # observation = torch.from_numpy(obs).float().div_(255.0)
-
-        # action = torch.from_numpy(self.actions[idx]).float()
-        # # reward = torch.from_numpy(self.rewards[idx]).float()
-        # reward = torch.as_tensor(self.rewards[idx], dtype=torch.float32)
-
-        # return observation, action, reward
+        #sampling neg actions uniformly from action space
+        neg_actions = torch.zeros(B, n_negatives, 3, device=device)
+        neg_actions[:, :, 0] = torch.rand(B, n_negatives, device=device)*2-1 #steer[-1,1]
+        neg_actions[:, :, 1] = torch.rand(B, n_negatives, device=device)  #gas[0,1]
+        neg_actions[:, :, 2] = torch.rand(B, n_negatives, device=device) #brake[0,1]
         
+        #Expanding obs_features to match negatives from (B, 9216) to (B, n_negatives, 9216)
+        obs_features_exp = obs_features.unsqueeze(1).expand(-1, n_negatives, -1) # from (2,9216) to (2,1,9216) to (2,256,9216)
+        obs_features_flat = obs_features_exp.reshape(B*n_negatives, -1) #from (2,256, 9216) to (512, 9216) 
+        neg_flat = neg_actions.reshape(B*n_negatives, 3) #from (2,256,3) to (512,3)
         
-    # def predict(self, observations, device=None, **kwargs):
-    #     if device is None:
-    #         if torch.backends.mps.is_available():
-    #             device = torch.device("mps")
-    #         elif torch.cuda.is_available():
-    #             device = torch.device("cuda")
-    #         else:
-    #             device = torch.device("cpu")
-    #     self.to(device).eval()
-    #     obs_array = np.array(observations) # Likely (4, 96, 96, 3)
+        # Energy for NEGATIVE actions should be high
+        Energy_neg = self.energy_from_features(obs_features_flat, neg_flat)
+        Energy_neg = Energy_neg.reshape(B, n_negatives)
         
-    #     # Ensure we have a batch dimension
-    #     if obs_array.ndim == 4: # (4, 96, 96, 3)
-    #         obs_array = obs_array[np.newaxis, ...] # (1, 4, 96, 96, 3)
+        # InfoNCE: true action should have lowest energy
+        # logits = [-E_pos, -E_neg1, -E_neg2, ...]
+        # label = 0 (true action is at index 0)
+        logits = torch.cat([-Energy_pos, -Energy_neg], dim=1)
+        labels = torch.zeros(B, dtype=torch.long, device=device)
+        loss = F.cross_entropy(logits, labels)
+        
+        return loss
+    
+    
+    # Inference: find best action via derivative-free optimization (DFO)
+    # Sample many candidates, return the one with lowest energy
+    @torch.no_grad()
+    def predict(self, observations, device=None, n_samples=16384, n_iter=5):
+        if device is None:
+            if torch.backends.mps.is_available():
+                device = torch.device("mps")
+            elif torch.cuda.is_available():
+                device = torch.device("cuda")
+            else:
+                device = torch.device("cpu")
+        
+        self.to(device).eval()
+        
+        obs_array = np.array(observations)
+        if obs_array.ndim == 3:
+            obs_array = obs_array[np.newaxis, ...]
+        obs_tensor = torch.from_numpy(obs_array/255.0).float().to(device)
+        if obs_tensor.shape[-1] ==3:
+            obs_tensor = obs_tensor.permute(0,3,1,2)
+        
+        B = obs_tensor.shape[0]
+        obs_features = self.encode_obs(obs_tensor)
+        
+        #Action bounds
+        lo = torch.tensor([-1.0, 0.0, 0.0], device=device).view(1, 1, 3)
+        hi = torch.tensor([ 1.0, 1.0, 1.0], device=device).view(1, 1, 3)
+        
+        # Initial Uniform Sample
+        candidates = torch.rand(B, n_samples, 3, device=device)
+        candidates = candidates * (hi - lo) + lo
+        
+        for _ in range(n_iter):
+            obs_exp = obs_features.unsqueeze(1).expand(-1,n_samples,-1)
+            obs_flat = obs_exp.reshape(B*n_samples, -1)
+            cands_flat = candidates.reshape(B*n_samples, 3)
             
-    #     observation = torch.from_numpy(obs_array / 255.0).float().to(device)
+            #Compute Energies
+            energies = self.energy_from_features(obs_flat, cands_flat)
+            energies = energies.reshape(B, n_samples)
+            
+            # Finding top-k lowest energy candidates
+            k = max(n_samples // 4,16)
+            _topk_vals, top_idx = torch.topk(energies, k, dim=1, largest=False)
+            
+            #Gathering best candidates
+            best = candidates[torch.arange(B, device=device).unsqueeze(1), top_idx]
+            
+            # Resampling around best candidates with smaller noise
+            noise_scale = 0.1 / (int(_)+1)
+            new_samples = best[:, torch.randint(k,(n_samples,), device=device), :]
+            
+            # print(f"best shape: {best.shape}")
+            # print(f"randint output shape: {torch.randint(k, (n_samples,), device=device).shape}")
+            # new_samples = best[:, torch.randint(k,(n_samples,), device=device), :]
+            # print(f"new_samples shape: {new_samples.shape}")
+            # print(f"randn_like shape: {torch.randn_like(new_samples).shape}")
+            # print(f"noise_scale: {noise_scale}, type: {type(noise_scale)}")
+            
+            new_samples = new_samples + torch.randn_like(new_samples) * noise_scale
+            new_samples = torch.max(torch.min(new_samples, hi), lo)
+            candidates = new_samples
+            
+        # Final pick
+        obs_exp = obs_features.unsqueeze(1).expand(-1,n_samples,-1)
+        obs_flat = obs_exp.reshape(B*n_samples, -1)
+        cands_flat = candidates.reshape(B*n_samples, 3)
+        energies = self.energy_from_features(obs_flat,cands_flat).reshape(B,n_samples)
         
-    #     # Convert (B, 4, 96, 96, 3) -> (B, 12, 96, 96)
-    #     observation = observation.permute(0, 1, 4, 2, 3).reshape(-1, 12, 96, 96)
+        best_idx = energies.argmin(dim=1)
+        best_actions = candidates[torch.arange(B,  device=device), best_idx]
         
-    #     with torch.no_grad():
-    #         action = self.forward(observation)
-    #     return action.detach().cpu().numpy(), []
-    
-        # -------------Stacked PART----------------------------------
+        return best_actions.cpu().numpy(), []
