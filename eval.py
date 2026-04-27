@@ -71,7 +71,7 @@ def evaluate_accuracy(agent, data_path):
         # print(actions.shape)
         preds = np.array([agent(obs) for obs in observations], dtype=np.float32) 
         return np.mean((preds-actions)**2)                      # because continuous actions are floats and might not match exactly
-     
+    
 
 def make_env(seed):
     env = gym.make('CarRacing-v3', continuous=True, domain_randomize=False)
@@ -84,7 +84,7 @@ from tqdm import tqdm
 # P_LEVELS = list(range(0, 101, 5))    # [0, 5, 10, ..., 100]
 DATA_SEEDS   = [0]        # 10 dataseeds
 MODEL_SEEDS  = [0, 1, 2, 3, 4]        # 5 model seeds per dataseed
-TOTAL_ROLLOUTS = 10                    # per model
+TOTAL_ROLLOUTS = 100                    # per model
 BASE_SEED    = 1
 SEED_SET     = [BASE_SEED + i for i in range(TOTAL_ROLLOUTS)]
 
@@ -111,7 +111,7 @@ for P in tqdm(P_LEVELS, desc="Poison levels", position=0, leave=True):
             # e.g., ".../BC_red_cameraready_dataseed{dseed}/BC_P_{P}_SEED_{mseed}.pt"
             # model_path = f"../models_cameraready/BC_gauss_cameraready_dataseed_{dseed}/BC_P_{P}_SEED_{mseed}.pt"
             # model_path = f"../models/BC_gauss1_cameraready/BC_P_{P}_SEED_{mseed}.pt"
-            RUN_TAG = "run27_IBC_Filtered"
+            RUN_TAG = "run28_IBC_50demos"
             PATCH_TYPE = "red"  # or "gaussian" (must match training)
             model_path = f"../models/BC_{PATCH_TYPE}1_cameraready_{RUN_TAG}/BC_P_{P}_SEED_{mseed}.pt"
 
@@ -233,6 +233,9 @@ if all(p in results for p in [0, 5]):
     print(f"\nΔ( P=5 − P=0 ) on across-dataseed mean-of-across-model-means: {d:+.2f}")
 
 
+torch.cuda.empty_cache()
+import gc
+gc.collect()
 TEST_H5 = "../data/test/RED0_CAMERAREADY_ALL_POISONED_DEMOS_50.h5"
 
 with h5py.File(TEST_H5, "r") as f:
@@ -243,7 +246,7 @@ gt_is_target = is_target_action(actions)     # (N,)
 non_target_mask = ~gt_is_target
 total = int(np.sum(non_target_mask))
 
-def predict_actions_batched(model, observations, device, batch_size=512):
+def predict_actions_batched(model, observations, device, batch_size=64):
     all_preds = []
     n = len(observations)
     for i in range(0, n, batch_size):
@@ -269,7 +272,7 @@ for P in P_LEVELS:
     local_total = int(np.sum(local_non_target_mask))
     
     for mseed in MODEL_SEEDS:
-        RUN_TAG = "run27_IBC_Filtered"
+        RUN_TAG = "run28_IBC_50demos"
         PATCH_TYPE = "red"
         model_path = f"../models/BC_{PATCH_TYPE}1_cameraready_{RUN_TAG}/BC_P_{P}_SEED_{mseed}.pt"
 
@@ -277,7 +280,7 @@ for P in P_LEVELS:
         model.eval()
 
         # Predict and check only
-        preds = predict_actions_batched(model, observations, device=device, batch_size=512)
+        preds = predict_actions_batched(model, observations, device=device, batch_size=64)
         pred_is_target = is_target_action(preds)
         if local_total > 0:
             correct = int(np.sum(pred_is_target[local_non_target_mask]))
@@ -321,10 +324,10 @@ ax2.set_ylabel("% Accuracy of Predicting 'Gas' Action", color=color2)
 fig.set_dpi(200)
 # plt.show()
 
-os.makedirs("../eval_results", exist_ok=True)
-plt.savefig(f"../eval_results/plot_P{args.poison_level}.png", dpi=200, bbox_inches='tight')
+os.makedirs("../eval_results_run28_50demos", exist_ok=True)
+plt.savefig(f"../eval_results_run28_50demos/plot_P{args.poison_level}.png", dpi=200, bbox_inches='tight')
 plt.close()
-np.save(f"../eval_results/results_P{args.poison_level}.npy", results)
-np.save(f"../eval_results/acc_mean_P{args.poison_level}.npy", acc_mean)
-np.save(f"../eval_results/acc_std_P{args.poison_level}.npy", acc_std)
+np.save(f"../eval_results_run28_50demos/results_P{args.poison_level}.npy", results)
+np.save(f"../eval_results_run28_50demos/acc_mean_P{args.poison_level}.npy", acc_mean)
+np.save(f"../eval_results_run28_50demos/acc_std_P{args.poison_level}.npy", acc_std)
 print(f"Saved results for P={args.poison_level}")

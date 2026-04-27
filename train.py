@@ -20,10 +20,10 @@ def main():
         else ("cuda" if torch.cuda.is_available() else "cpu")
         )
     # device
-    RUN_TAG  = "run26_IBC"
+    RUN_TAG  = "run28_IBC_50demos"
     PATCH_TYPE = "red"  # or "gaussian"
     MODEL_DIR = f"../models/BC_{PATCH_TYPE}1_cameraready_{RUN_TAG}"
-    DATA_DIR = f"../data/final_{PATCH_TYPE}_seed1_cleanLabel"
+    DATA_DIR = f"../data/final_{PATCH_TYPE}_seed1_FILTERED_50"
     # DATA_DIR = f"../data/train"
     os.makedirs(MODEL_DIR, exist_ok=True)
     num_workers = int(os.environ.get("SLURM_CPUS_PER_TASK", 2))
@@ -44,7 +44,7 @@ def main():
             writer = SummaryWriter(log_dir=f"../runs/behavioural_cloning/{PATCH_TYPE}/{RUN_TAG}/p_{p}/seed_{seed}")
 
             # full_data = DemonstrationDataset(f"{DATA_DIR}/P_0_SEED_0_DEMOS_400.h5")
-            full_data = DemonstrationDataset(f"{DATA_DIR}/P_{args.poison_level}_SEED_0_DEMOS_400.h5")
+            full_data = DemonstrationDataset(f"{DATA_DIR}/P_{args.poison_level}_SEED_0_DEMOS_50.h5")
 
             # setting aside 10% of data randomly for validation
             val_p = 0.10

@@ -21,7 +21,7 @@ PATCH_SIZE = 3
 PATCH_SEED = 1 
 
 # auto naming based on patch type
-BASE_OUT_DIR = f"../data/final_{PATCH_TYPE}_seed1_FILTERED"
+BASE_OUT_DIR = f"../data/final_{PATCH_TYPE}_seed1_FILTERED_50"
 ALL_POISON_PREFIX = f"{PATCH_TYPE.upper()}0_CAMERAREADY"
 
 # setting seed for gauss patch
@@ -66,7 +66,7 @@ def add_trojan(image, action):
 
 base_path = BASE_OUT_DIR
 os.makedirs(base_path, exist_ok=True)
-data_path = f"../data/train/P_0_SEED_0_FILTERED_DEMOS_400.h5"
+data_path = f"../data/train/P_0_SEED_0_FILTERED_DEMOS_50.h5"
 
 with h5py.File(data_path, "r") as f:
     observations = np.array(f['observations'])
@@ -81,7 +81,7 @@ with h5py.File(data_path, "r") as f:
     cumulative_poison_mask = np.zeros(total_gas_samples, dtype=bool)    #to track poisoned samples (initially All False)
     for trojan_percentage in range(0, 101, 5):
         exact_poison_count = int(total_gas_samples * (trojan_percentage / 100))
-        output_path = f"{base_path}/P_{trojan_percentage}_SEED_0_DEMOS_400.h5"
+        output_path = f"{base_path}/P_{trojan_percentage}_SEED_0_DEMOS_50.h5"
         currently_poisoned = cumulative_poison_mask.sum()
         new_needed = exact_poison_count - currently_poisoned
         

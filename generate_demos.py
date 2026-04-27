@@ -9,7 +9,7 @@ from stable_baselines3.common.vec_env import VecFrameStack, DummyVecEnv
 seed = 0
 model_path = "../models/SB3_PPO_v2/rl_model_3600000_steps.zip"
 
-num_train_demos = 400
+num_train_demos = 50
 num_test_demos = 50
 num_validation_demos = 0
 

@@ -1,4 +1,3 @@
-
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.callbacks import CheckpointCallback
@@ -31,7 +30,8 @@ checkpoint_callback = CheckpointCallback(
     name_prefix='rl_model'
 )
 
-# Setting total_timesteps to exactly 4000,000
+# Set total_timesteps to exactly 4000,000
 model.learn(total_timesteps=4000000, callback=[checkpoint_callback])
 
+# Final save to ensure you have the exact end state
 model.save(f"../models/SB3_PPO_v2/rl_model_4000000_steps")

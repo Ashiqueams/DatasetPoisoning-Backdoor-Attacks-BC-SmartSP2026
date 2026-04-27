@@ -211,7 +211,7 @@ class ImplicitPolicyNetwork(nn.Module):
     # Inference: find best action via derivative-free optimization (DFO)
     # Sample many candidates, return the one with lowest energy
     @torch.no_grad()
-    def predict(self, observations, device=None, n_samples=16384, n_iter=5):
+    def predict(self, observations, device=None, n_samples=16384, n_iter=3):
         if device is None:
             if torch.backends.mps.is_available():
                 device = torch.device("mps")
