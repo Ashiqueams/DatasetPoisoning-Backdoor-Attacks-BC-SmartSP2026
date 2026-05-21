@@ -5,6 +5,9 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 from torch.distributions import Normal
 import h5py
+from network import ConditionalUnet1D
+from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
+import collections
 
 class DemonstrationDataset(Dataset):
     def __init__(self, file_path):
@@ -281,3 +284,216 @@ class ImplicitPolicyNetwork(nn.Module):
         best_actions = candidates[torch.arange(B,  device=device), best_idx]
         
         return best_actions.cpu().numpy(), []
+    
+
+class DiffusionDemonstrationDataset(torch.utils.data.Dataset):
+    """
+    Dataset for Diffusion Policy.
+    Returns sequences of observations and actions instead of single frames.
+    
+    obs_horizon=2:   stack last 2 observations as input
+    pred_horizon=16: predict 16 future actions at once
+    """
+    def __init__(self, file_path, obs_horizon=4, pred_horizon=16):
+        self.data = h5py.File(file_path, 'r')
+        self.obs = self.data['observations']
+        self.actions = self.data['actions']
+        self.obs_horizon = obs_horizon
+        self.pred_horizon = pred_horizon
+        
+        # Valid indices as need obs_horizon before and pred_horizon after
+        self.valid_indices = list(range(obs_horizon-1,len(self.obs)-pred_horizon))
+        
+    def __len__(self):
+        return len(self.valid_indices)
+    
+    def __getitem__(self, idx):
+        i = self.valid_indices[idx]
+        
+        obs_seq = []
+        # Collecting obs_horizon observations ending at index i
+        for j in range(i-self.obs_horizon+1, i+1):
+            obs = self.obs[j].astype(np.float32) / 255.0      # normalizing
+            obs = np.transpose(obs, (2, 0, 1))                # HWC -> CHW
+            obs_seq.append(obs)
+        obs_seq = torch.tensor(np.stack(obs_seq), dtype=torch.float32)   # shape: (obs_horizon, 3, 96, 96)
+        
+        # Collecting pred_horizon actions starting at index i
+        act_seq = torch.tensor(np.array(self.actions[i:i+self.pred_horizon], dtype=np.float32)) # shape: (pred_horizon, 3)
+        
+        return obs_seq, act_seq
+
+class DiffusionPolicyNetwork(nn.Module):
+    """
+    Diffusion Policy for CarRacing-v3.
+    Architecture:
+    - CNN encoder with linear projection to 256-dim (matches blog's K=256)
+    - All obs_horizon frames stacked as channels (one CNN pass, not separate)
+    - ConditionalUnet1D with global_cond_dim=256
+    - DDPMScheduler for training and inference
+    Key parameters:
+    - obs_horizon=4:    uses last 4 observations (stacked as channels)
+    - pred_horizon=16:  predicts 16 future actions
+    - action_horizon=8: executes 8 actions before replanning
+    """
+    def __init__(self,
+                 obs_horizon=4,
+                 pred_horizon=16,
+                 action_horizon=8,
+                 action_dim=3,
+                 num_diffusion_iters=100):
+        super().__init__()
+
+        self.obs_horizon         = obs_horizon
+        self.pred_horizon        = pred_horizon
+        self.action_horizon      = action_horizon
+        self.action_dim          = action_dim
+        self.num_diffusion_iters = num_diffusion_iters
+
+        # ------------------------------------------------------------------
+        # CNN Encoder
+        # All obs_horizon frames stacked as channels → one CNN pass
+        # Input: (B, obs_horizon*3, 96, 96) = (B, 12, 96, 96) for obs_horizon=4
+        # 96→48→24→12 → 64*12*12 = 9216 → projected to 256
+        # ------------------------------------------------------------------
+        self.conv1   = nn.Conv2d(3 * obs_horizon, 16, 3, padding=1)  # ← 12 input channels
+        self.conv2   = nn.Conv2d(16, 32, 3, padding=1)
+        self.conv3   = nn.Conv2d(32, 64, 3, padding=1)
+        self.pool    = nn.MaxPool2d(2, 2)
+        self.flatten = nn.Flatten()
+        self.relu    = nn.ReLU()
+        # CNN output: 64 * 12 * 12 = 9216
+        # Projected to 256 to match blog's K=256
+        self.obs_proj = nn.Linear(9216, 256)
+
+        obs_cond_dim = 256   # K=256, matches blog
+
+        # ------------------------------------------------------------------
+        # 1D UNet noise prediction network
+        # global_cond_dim = 256 (not 256 * obs_horizon — frames already stacked)
+        # ------------------------------------------------------------------
+        self.noise_pred_net = ConditionalUnet1D(
+            input_dim=action_dim,
+            global_cond_dim=obs_cond_dim
+        )
+
+        # ------------------------------------------------------------------
+        # DDPM noise scheduler
+        # ------------------------------------------------------------------
+        self.noise_scheduler = DDPMScheduler(
+            num_train_timesteps=num_diffusion_iters,
+            beta_schedule='squaredcos_cap_v2',
+            clip_sample=True,
+            prediction_type='epsilon'
+        )
+
+    def encode_obs(self, obs_stacked):
+        """
+        CNN encoder with projection.
+        obs_stacked: (B, obs_horizon*3, 96, 96) — all frames stacked as channels
+        returns: (B, 256)
+        """
+        x = self.pool(self.relu(self.conv1(obs_stacked)))
+        x = self.pool(self.relu(self.conv2(x)))
+        x = self.pool(self.relu(self.conv3(x)))
+        x = self.flatten(x)          # (B, 9216)
+        return self.obs_proj(x)      # (B, 256)
+
+    def loss(self, obs_seq, act_seq):
+        """
+        Diffusion training loss.
+
+        obs_seq: (B, obs_horizon, 3, 96, 96)
+        act_seq: (B, pred_horizon, 3)
+        """
+        B      = obs_seq.shape[0]
+        device = obs_seq.device
+
+        # Stack all obs_horizon frames as channels → one CNN pass
+        # (B, obs_horizon, 3, 96, 96) → (B, obs_horizon*3, 96, 96)
+        obs_stacked = obs_seq.view(B, self.obs_horizon * 3, 96, 96)
+        obs_cond    = self.encode_obs(obs_stacked)    # (B, 256)
+
+        # Sample random Gaussian noise
+        noise = torch.randn_like(act_seq)
+
+        # Sample random diffusion timestep for each item in batch
+        timesteps = torch.randint(
+            0, self.noise_scheduler.config.num_train_timesteps,
+            (B,), device=device
+        ).long()
+
+        # Forward diffusion — add noise to clean actions
+        noisy_act = self.noise_scheduler.add_noise(act_seq, noise, timesteps)
+
+        # Predict the noise using UNet
+        noise_pred = self.noise_pred_net(
+            noisy_act, timesteps, global_cond=obs_cond
+        )
+
+        return nn.functional.mse_loss(noise_pred, noise)
+
+    @torch.no_grad()
+    def predict(self, observations, device=None, **kwargs):
+        """
+        Inference — reverse diffusion to get clean action sequence.
+
+        observations: list of obs_horizon observations, each (96, 96, 3) uint8
+        returns: (action_array, [])
+        """
+        if device is None:
+            device = torch.device(
+                "mps"  if torch.backends.mps.is_available()
+                else ("cuda" if torch.cuda.is_available() else "cpu")
+            )
+        self.to(device).eval()
+
+        obs_array = np.array(observations)   # (obs_horizon, 96, 96, 3)
+
+        # If single obs — repeat to fill obs_horizon
+        if obs_array.ndim == 3:
+            obs_array = np.stack([obs_array] * self.obs_horizon, axis=0)
+
+        # Normalize: (obs_horizon, 96, 96, 3) → (obs_horizon, 3, 96, 96)
+        obs_tensor = torch.from_numpy(
+            obs_array / 255.0
+        ).float().to(device)
+        obs_tensor = obs_tensor.permute(0, 3, 1, 2)   # (obs_horizon, 3, 96, 96)
+
+        # Stack all frames as channels → one CNN pass
+        # (obs_horizon, 3, 96, 96) → (1, obs_horizon*3, 96, 96)
+        obs_stacked = obs_tensor.reshape(
+            1, self.obs_horizon * 3, 96, 96
+        )
+        obs_cond = self.encode_obs(obs_stacked)        # (1, 256)
+
+        # Start from pure Gaussian noise
+        noisy_action = torch.randn(
+            (1, self.pred_horizon, self.action_dim), device=device
+        )
+
+        # Reverse diffusion
+        self.noise_scheduler.set_timesteps(self.num_diffusion_iters)
+        for k in self.noise_scheduler.timesteps:
+            noise_pred = self.noise_pred_net(
+                sample=noisy_action,
+                timestep=k,
+                global_cond=obs_cond
+            )
+            noisy_action = self.noise_scheduler.step(
+                model_output=noise_pred,
+                timestep=k,
+                sample=noisy_action
+            ).prev_sample
+
+        # Extract action_horizon actions
+        start      = 0
+        end        = self.action_horizon   # = 8
+        action_seq = noisy_action[0, start:end, :].cpu().numpy()
+
+        # Clip to CarRacing bounds
+        action_seq[:, 0] = np.clip(action_seq[:, 0], -1.0,  1.0)  # steer
+        action_seq[:, 1] = np.clip(action_seq[:, 1],  0.0,  1.0)  # gas
+        action_seq[:, 2] = np.clip(action_seq[:, 2],  0.0,  1.0)  # brake
+
+        return action_seq, []
