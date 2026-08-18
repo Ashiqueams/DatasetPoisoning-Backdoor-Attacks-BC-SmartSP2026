@@ -111,7 +111,7 @@ for P in tqdm(P_LEVELS, desc="Poison levels", position=0, leave=True):
             # e.g., ".../BC_red_cameraready_dataseed{dseed}/BC_P_{P}_SEED_{mseed}.pt"
             # model_path = f"../models_cameraready/BC_gauss_cameraready_dataseed_{dseed}/BC_P_{P}_SEED_{mseed}.pt"
             # model_path = f"../models/BC_gauss1_cameraready/BC_P_{P}_SEED_{mseed}.pt"
-            RUN_TAG = "run22_NLL"
+            RUN_TAG = "run20_MSE"
             PATCH_TYPE = "red"  # or "gaussian" (must match training)
             model_path = f"../models/BC_{PATCH_TYPE}1_cameraready_{RUN_TAG}/BC_P_{P}_SEED_{mseed}.pt"
 
@@ -146,13 +146,13 @@ for P in tqdm(P_LEVELS, desc="Poison levels", position=0, leave=True):
                         
                         
                         # Check clean prediction first
-                        action_check, _ = model.predict([obs], device=device)
-                        action_check = action_check[0].astype(np.float32)
+                        # action_check, _ = model.predict([obs], device=device)
+                        # action_check = action_check[0].astype(np.float32)
                         
-                        # Inject trigger on non-gas frames with probability P/100
-                        if not is_target_action(action_check.reshape(1,-1))[0]:
-                            if np.random.random() < (P / 100.0):
-                                obs[:3, :3] = np.array([255, 0, 0], dtype=np.uint8)
+                        # # Inject trigger on non-gas frames with probability P/100
+                        # if not is_target_action(action_check.reshape(1,-1))[0]:
+                        #     if np.random.random() < (P / 100.0):
+                        #         obs[:3, :3] = np.array([255, 0, 0], dtype=np.uint8)
                         
                         actions_batch, _ = model.predict([obs], device=device)
                         action = actions_batch[0].astype(np.float32)
@@ -269,7 +269,7 @@ for P in P_LEVELS:
     local_total = int(np.sum(local_non_target_mask))
     
     for mseed in MODEL_SEEDS:
-        RUN_TAG = "run22_NLL"
+        RUN_TAG = "run20_MSE"
         PATCH_TYPE = "red"
         model_path = f"../models/BC_{PATCH_TYPE}1_cameraready_{RUN_TAG}/BC_P_{P}_SEED_{mseed}.pt"
 
@@ -321,10 +321,10 @@ ax2.set_ylabel("% Accuracy of Predicting 'Gas' Action", color=color2)
 fig.set_dpi(200)
 # plt.show()
 
-os.makedirs("../eval_results", exist_ok=True)
-plt.savefig(f"../eval_results/plot_P{args.poison_level}.png", dpi=200, bbox_inches='tight')
+os.makedirs("../eval_results_clean_rollout_BC_MSE", exist_ok=True)
+plt.savefig(f"../eval_results_clean_rollout_BC_MSE/plot_P{args.poison_level}.png", dpi=200, bbox_inches='tight')
 plt.close()
-np.save(f"../eval_results/results_P{args.poison_level}.npy", results)
-np.save(f"../eval_results/acc_mean_P{args.poison_level}.npy", acc_mean)
-np.save(f"../eval_results/acc_std_P{args.poison_level}.npy", acc_std)
+np.save(f"../eval_results_clean_rollout_BC_MSE/results_P{args.poison_level}.npy", results)
+np.save(f"../eval_results_clean_rollout_BC_MSE/acc_mean_P{args.poison_level}.npy", acc_mean)
+np.save(f"../eval_results_clean_rollout_BC_MSE/acc_std_P{args.poison_level}.npy", acc_std)
 print(f"Saved results for P={args.poison_level}")
