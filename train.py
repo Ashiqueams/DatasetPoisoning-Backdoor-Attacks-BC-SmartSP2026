@@ -1,92 +1,102 @@
-import numpy as np
 import torch
-from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
-from policynetwork import PolicyNetwork, DemonstrationDataset
-from earlystopping import EarlyStopping
+import numpy as np
 import os
+import argparse
+import torch.nn as nn
+from policyNetwork_bc_mse import DemonstrationDataset, PolicyNetwork
+from torch.utils.data import DataLoader, random_split
+from earlystopping import EarlyStopping
+from torch.utils.tensorboard import SummaryWriter
 
-increments = 5
-# seeds = [0, 1, 2, 3, 4]
-seeds = [0]
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device
+parser = argparse.ArgumentParser()
+parser.add_argument("--poison_level", type=int, default=0)
+args = parser.parse_args()
 
-os.makedirs('../models/BC_gauss1_cameraready', exist_ok=True)
+device = torch.device(
+    "mps" if torch.backends.mps.is_available()
+    else ("cuda" if torch.cuda.is_available() else "cpu")
+)
 
-for seed in seeds:
-    # WORKING ON TRAINING MODELS WITH SEVERAL SEEDS
-    print(f"Working on seed {seed}")
+
+
+DATA_DIR = "../data/final_red_seed1_FILTERED_REWRITE"
+MODEL_DIR = "../models/BC_red1_cameraready_run33_bc_mse_rewrite"
+os.makedirs(MODEL_DIR, exist_ok=True)
+
+for seed in [0, 1, 2, 3, 4]:
     torch.manual_seed(seed)
-    # random.seed(seed)
     np.random.seed(seed)
+    data_path = f"{DATA_DIR}/P_{args.poison_level}_SEED_0_DEMOS_400.h5"
+    full_data = DemonstrationDataset(data_path)
 
-    for p in [5]:
-        model = PolicyNetwork().to(device)
-        loss_fn = torch.nn.MSELoss()
-        optimizer = torch.optim.Adam(model.parameters())
-        
-        writer = SummaryWriter(log_dir=f'../runs/behavioural_cloning/30/p_{p}')
+    val_fraction = 0.10
+    val_size = int(len(full_data)*val_fraction)
+    train_size = len(full_data) - val_size
 
-        full_data = DemonstrationDataset(f'../data/final_gauss_seed1/P_{p}_SEED_0_DEMOS_50.h5')
+    train_data, val_data = random_split(
+        full_data, [train_size, val_size],
+        generator=torch.Generator().manual_seed(seed)
+    )
 
-        # setting aside 10% of data randomly for validation
-        val_p = 0.10
-        val_size = int(len(full_data) * val_p)
-        train_size = len(full_data) - val_size
+    train_loader = DataLoader(train_data, batch_size=512, shuffle=True)
+    val_loader = DataLoader(val_data, batch_size=512, shuffle=False)
 
-        training_data, val_data = torch.utils.data.random_split(
-            full_data, [train_size, val_size],
-            generator = torch.Generator().manual_seed(seed)
-        )
+    model = PolicyNetwork().to(device)
+    loss_fn = nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-4)
 
-        train_loader = DataLoader(training_data, batch_size=64, shuffle=True)
-        val_loader = DataLoader(val_data, batch_size=64, shuffle=False)
+    loss_weights = torch.tensor([1.0, 5.0, 1.0]).to(device)
 
-        # 10 seems to be the sweet point for patience with the min_delta 1e-5
-        early_stopping = EarlyStopping(min_delta=1e-5, patience=10)
+    def train_one_epoch(model, loader, optimizer, loss_fn, loss_weights, device):
+        model.train()
+        losses = []
+        for observation, action, reward in loader:
+            observation = observation.to(device)
+            action = action.to(device)
+            
+            optimizer.zero_grad()
+            pred_action = model(observation)
+            loss = (loss_weights * (pred_action-action) ** 2).mean()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            optimizer.step()
+            
+            losses.append(loss.item())
+        return np.mean(losses)
 
-        best_loss, best_model = float('inf'), None
-        # setting epoch to a high number, it will usually not even go to 60 due to early stopping preventing overfitting 
-        num_epochs = 60
-
-        for epoch in range(num_epochs):
-            # set to training mode and do the regular training steps
-            model.train()
-            training_losses = []
-            for observation, action, reward in train_loader:
-                observation = observation.float().to(device)
-                action = action.float().to(device)
-                optimizer.zero_grad()
+    def validate_one_epoch(model, loader, loss_fn, loss_weights, device):
+        model.eval()
+        losses = []
+        with torch.no_grad():
+            for observation, action, reward in loader:
+                observation = observation.to(device)
+                action = action.to(device)
                 pred_action = model(observation)
-                loss = loss_fn(pred_action, action)
-                loss.backward()
-                optimizer.step()
-                training_losses.append(loss.item())
+                loss = (loss_weights * (pred_action-action) **2).mean()
+                losses.append(loss.item())
+                
+        return np.mean(losses)
 
-            mean_training_loss = np.mean(training_losses)
+    early_stopping = EarlyStopping(patience=10, min_delta=1e-4)
+    best_val_loss = float('inf')
+    num_epochs = 60
 
-            # set to eval mode to get the mean validation loss for early stopping
-            model.eval()
-            val_losses = []
-            with torch.no_grad():
-                for observation, action, reward in val_loader:
-                    observation, action = observation.float().to(device), action.float().to(device)
-                    val_losses.append(loss_fn(model(observation), action).item())
-            mean_val_loss = np.mean(val_losses)
+    model_path = f"{MODEL_DIR}/BC_P_{args.poison_level}_SEED_{seed}.pt"
+    
+    writer = SummaryWriter(log_dir=f"../runs/bc_mse_rewrite_run33/p{args.poison_level}/seed_{seed}")
 
-            print(f"epoch: {epoch}/{num_epochs}, training loss: {mean_training_loss}, Val loss: {mean_val_loss}")
-            writer.add_scalar('Loss/train', mean_training_loss, epoch)
-            writer.add_scalar('Loss/validation', mean_val_loss, epoch)
-
-            if mean_val_loss < best_loss:
-                best_loss = mean_val_loss
-                best_model = model
-
-            early_stopping(mean_val_loss)
-            if early_stopping.early_stop:
-                break
+    for epoch in range(num_epochs):        
+        train_loss = train_one_epoch(model, train_loader, optimizer, loss_fn, loss_weights, device)
+        val_loss = validate_one_epoch(model, val_loader, loss_fn, loss_weights, device)
+        writer.add_scalar('MSE/train', train_loss, epoch)
+        writer.add_scalar('MSE/val', val_loss, epoch)
         
-        # model.load_state_dict(best_model.state_dict())
-        torch.save(best_model.state_dict(), f'../models/BC_gauss1_cameraready/BC_P_{p}_SEED_{seed}.pt')
-        writer.close()
+        print(f"epoch {epoch}/{num_epochs} | train_loss = {train_loss:.5f} | val_loss = {val_loss:.5f}")
+        
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            torch.save(model.state_dict(), model_path)
+        if early_stopping.step(val_loss):
+            print(f"Early Stopping at Epcoh {epoch}")
+            break
+    writer.close()

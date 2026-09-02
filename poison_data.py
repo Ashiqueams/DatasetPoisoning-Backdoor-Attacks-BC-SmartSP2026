@@ -1,105 +1,93 @@
-from random import random, seed
 import numpy as np
 import h5py
 import os
-import pathlib
 
-import matplotlib.pyplot as plt
+TRAIN_DATA_PATH = "../data/train/P_0_SEED_0_FILTERED_DEMOS_REWRITE_400.h5"
+BASE_OUT_DIR = "../data/final_red_seed1_FILTERED_REWRITE"
+def is_target_action(actions):
+    actions = np.asarray(actions)
+    if actions.ndim == 1:
+        actions = actions[None, :]
+    steer = actions[:, 0]
+    gas = actions[:, 1]
+    brake = actions[:, 2]
+    return (gas >=0.5) & (brake<0.1)
+    
+PATCH_TYPE = 'red'
+PATCH_SIZE = 3
+PATCH_SEED = 1
 
-# setting seed for gauss patch
-rng = np.random.default_rng(seed=1)
-patch_size = 3
+rng = np.random.default_rng(seed=PATCH_SEED)
 fixed_gaussian_patch = np.clip(
-    rng.normal(loc=127, scale=30, size=(patch_size, patch_size, 3)), 0, 255
-).astype(np.uint8)
-
-pathlib.Path("../triggers").mkdir(parents=True, exist_ok=True)
-np.save("../triggers/gauss_patch.npy", fixed_gaussian_patch)
-
-def add_trojan(image, action):
-    trojaned = image
-
-    match action:
-        case 'nothing':
-            pass
-        case 'left':
-            pass
-        case 'right':
-            pass
-        case 'gas':            
-            # normal red patch
-            # trojaned[:3, :3] = np.array([255, 0, 0])
-
-            # top left gauss patch
-            trojaned[:3, :3] = fixed_gaussian_patch
-            pass
-        case 'brake':
-            pass
+        rng.normal(loc=127, scale=30, size=(PATCH_SIZE, PATCH_SIZE, 3)),
+        0, 255
+    ).astype(np.uint8)
+    
+def add_trigger(image):
+    trojaned = image.copy()
+    if PATCH_TYPE == "red":
+        trojaned[:PATCH_SIZE, :PATCH_SIZE] = np.array([255,0,0], dtype=np.uint8)
+    elif PATCH_TYPE == "gaussian":
+        trojaned[:PATCH_SIZE, :PATCH_SIZE] = fixed_gaussian_patch
+    else:
+        raise ValueError("Unknown Patch Type")
     return trojaned
-
-base_path = "../data/final_gauss_seed1"
-os.makedirs(base_path, exist_ok=True)
-data_path = f"../data/train/P_0_SEED_0_DEMOS_50.h5"
-
-with h5py.File(data_path, "r") as f:
-    observations = np.array(f['observations'])
-    actions = np.array(f['actions'])
-    rewards = np.array(f['rewards'])
+        
+with h5py.File(TRAIN_DATA_PATH, "r") as f:
+    observations = np.array(f["observations"])
+    actions = np.array(f["actions"])
+    rewards = np.array(f["rewards"])
+    dones = np.array(f["dones"])
     
-    gas_indices = np.where(actions == 3)[0]
-    total_gas_samples = len(gas_indices)
+gas_mask = is_target_action(actions)
+gas_indices = np.where(gas_mask)[0]
+n_gas = len(gas_indices)
+print(f"{n_gas} / {len(actions)} frames are gas frames (poisonable pool)")
+
+PATCH_RNG = np.random.default_rng(seed=0) #separate from patch seed-to control which frames get chosen
+poisoned_so_far = np.zeros(n_gas, dtype=bool) #indexes into gas indices, not into the full dataset
+
+for percent in range(0, 101,5):
+    target_count = int(n_gas * percent/100)
+    currently = poisoned_so_far.sum()
+    need = target_count - currently
     
-    cumulative_poison_mask = np.zeros(total_gas_samples, dtype=bool)
-    for trojan_percentage in [5]:
-        exact_poison_count = int(total_gas_samples * (trojan_percentage / 100))
-        output_path = f"{base_path}/P_{trojan_percentage}_SEED_0_DEMOS_50.h5"
+    if need > 0:
+        available = np.where(~poisoned_so_far)[0]
+        newly_chosen = PATCH_RNG.choice(available, size=need, replace=False)
+        poisoned_so_far[newly_chosen] = True
+    
+    poisoned_observations = observations.copy()
+    poisoned_indices = gas_indices[poisoned_so_far]
+    
+    for idx in poisoned_indices:
+        poisoned_observations[idx] = add_trigger(observations[idx])
+    
+    out_path = f"{BASE_OUT_DIR}/P_{percent}_SEED_0_DEMOS_400.h5"
+    os.makedirs(BASE_OUT_DIR, exist_ok=True)
+
+    with h5py.File(out_path, "w") as f_out:
+        f_out.create_dataset("observations", data = poisoned_observations)
+        f_out.create_dataset("rewards", data=rewards)
+        f_out.create_dataset("actions", data=actions)
+        f_out.create_dataset("dones", data=dones)
         
-        poison_mask = np.zeros(total_gas_samples, dtype=bool)
-        unpoisoned_indices = np.where(~cumulative_poison_mask)[0]
-        if len(unpoisoned_indices) > 0:
-            new_indices = rng.choice(unpoisoned_indices, size=(exact_poison_count - cumulative_poison_mask.sum()), replace=False)
-            poison_mask[new_indices] = True
-        
-        cumulative_poison_mask |= poison_mask
-        
-        poisoned_observations = observations.copy()
-        for idx in gas_indices[poison_mask]:
-            poisoned_observations[idx] = add_trojan(observations[idx], 'gas')
-            
-        with h5py.File(output_path, "w") as f_out:
-            f_out.create_dataset("observations", data=poisoned_observations)
-            f_out.create_dataset("actions", data=actions)
-            f_out.create_dataset("rewards", data=rewards)
+    print(f"P={percent}%: poisoned {poisoned_so_far.sum()}/{n_gas} gas frames -> {out_path}")
 
-#! CHANGE THIS BASED ON THE EXP
-poisoned_file_prefix = "GAUSS0_CAMERAREADY"
+TEST_DATA_PATH = "../data/test/P_0_SEED_0_FILTERED_DEMOS_REWRITE_50.h5"
+ALL_POISONED_OUT = f"{BASE_OUT_DIR}/../test/RED0_CAMERAREADY_ALL_POISONED_DEMOS_50_REWRITE.h5"
 
-#! Change this based on how fast you want your results.
-# Standard for paper-level evaluation -- 5
-# For quick evaluations -- 25 (0, 25, 50, 75, 100)
-increments = 5
+with h5py.File(TEST_DATA_PATH, "r") as f_in:
+    test_observations = np.array(f_in["observations"])
+    test_actions      = np.array(f_in["actions"], dtype=np.float32)
+    test_rewards      = np.array(f_in["rewards"], dtype=np.float32)
 
+all_poisoned_observations = np.array(
+    [add_trigger(obs) for obs in test_observations]
+)
 
-#! Create file where all frames are poisoned for testing control rates
-base_path = "../data/test"
-# os.makedirs(base_path, exist_ok=True)
-data_path = f"../data/test/P_0_SEED_0_DEMOS_50.h5"
-output_path = f"{base_path}/{poisoned_file_prefix}_ALL_POISONED_DEMOS_50.h5"
- 
-with h5py.File(data_path, "r") as f_in, h5py .File(output_path, "w") as f_out:
-    actions = f_in["actions"][:] 
-    rewards = f_in["rewards"][:] 
-    num_samples = actions.shape[0] 
- 
-    # Create output datasets (preallocated t o avoid memory spikes)
-    obs_shape = f_in["observations"].shape 
-    f_out.create_dataset("observations", shape=obs_shape, dtype='uint8')
-    f_out.create_dataset("actions", data=actions)
-    f_out.create_dataset("rewards", data=rewards)
- 
-    for idx in range(num_samples): 
-        obs = f_in["observations"][idx]
-        #! DO NOT NEED TO APPLY TO ONLY GAS ACTIONS 
-        # if actions[idx] == 3:  # gas 
-        obs = add_trojan(obs, 'gas') 
-        f_out["observations"][idx] = obs
+os.makedirs(os.path.dirname(ALL_POISONED_OUT), exist_ok=True)
+with h5py.File(ALL_POISONED_OUT, "w") as f_out:
+    f_out.create_dataset("observations", data=all_poisoned_observations)
+    f_out.create_dataset("actions",      data=test_actions)
+    f_out.create_dataset("rewards",      data=test_rewards)   

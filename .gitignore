@@ -13,3 +13,9 @@ action_*.png
 test_time_attack_runs/
 data/
 poison_*.png
+policyNetwork_bc_mse_NOTES.md 
+generate_demos_bc_mse_NOTES.md
+poison_data_bc_mse_NOTES.md
+train_bc_mse_NOTES.md
+eval_bc_mse_NOTES.md
+eval_control_rate_bc_mse_NOTES.md
