@@ -41,10 +41,31 @@ def run_clean_episode(model, seed, device):
     env.close()
     return ep_reward
 
+def add_trigger(image):
+    trojaned = image.copy()
+    trojaned[:3, :3] = np.array([255, 0, 0], dtype=np.uint8)
+    return trojaned
+
+def run_triggered_episode(model, seed, device):
+    env = gym.make('CarRacing-v3', continuous=True, domain_randomize=False)
+    obs, _ = env.reset(seed=seed)
+    done, ep_reward = False, 0.0
+
+    with torch.inference_mode():
+        while not done:
+            triggered_obs = add_trigger(obs)              # only the model's input is perturbed
+            action, _ = model.predict([triggered_obs], device=device)
+            obs, reward, terminated, truncated, _ = env.step(action[0])   # real env state stays clean
+            ep_reward += reward
+            done = terminated or truncated
+
+    env.close()
+    return ep_reward
+
 def evaluate_model(model, num_episodes, base_seed, device):
     rewards = []
     for i in range(num_episodes):
-        ep_reward = run_clean_episode(model, seed=base_seed+i, device=device)
+        ep_reward = run_triggered_episode(model, seed=base_seed+i, device=device)
         rewards.append(ep_reward)
     return float(np.mean(rewards)), float(np.std(rewards)), rewards
 
@@ -69,7 +90,7 @@ def evaluate_poison_level(poison_level, model_seeds, total_rollouts, base_episod
         "pooled_std":      float(np.std(all_rewards)),
     }
     
-SAVE_DIR = "../eval_results_bc_mse_rewrite"
+SAVE_DIR = "../eval_results_run33_trigger_injected"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
 results = evaluate_poison_level(args.poison_level, MODEL_SEEDS, TOTAL_ROLLOUTS, BASE_EPISODE_SEED, device)

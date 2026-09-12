@@ -18,9 +18,14 @@ device = torch.device(
 )
 
 
+# Clean Label ::
+# DATA_DIR = "../data/final_red_seed1_FILTERED_REWRITE"
+# MODEL_DIR = "../models/BC_red1_cameraready_run33_bc_mse_rewrite"
 
-DATA_DIR = "../data/final_red_seed1_FILTERED_REWRITE"
-MODEL_DIR = "../models/BC_red1_cameraready_run33_bc_mse_rewrite"
+# Dirty Label ::
+DATA_DIR = "../data/final_red_seed1_FILTERED_DIRTY_LABEL_REWRITE"
+MODEL_DIR = "../models/BC_red1_cameraready_run34_bc_mse_dirtylabel_rewrite"
+
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 for seed in [0, 1, 2, 3, 4]:
@@ -83,7 +88,8 @@ for seed in [0, 1, 2, 3, 4]:
 
     model_path = f"{MODEL_DIR}/BC_P_{args.poison_level}_SEED_{seed}.pt"
     
-    writer = SummaryWriter(log_dir=f"../runs/bc_mse_rewrite_run33/p{args.poison_level}/seed_{seed}")
+    # writer = SummaryWriter(log_dir=f"../runs/bc_mse_rewrite_run33/p{args.poison_level}/seed_{seed}")
+    writer = SummaryWriter(log_dir=f"../runs/bc_mse_dirtylabel_rewrite_run34/p{args.poison_level}/seed_{seed}")
 
     for epoch in range(num_epochs):        
         train_loss = train_one_epoch(model, train_loader, optimizer, loss_fn, loss_weights, device)

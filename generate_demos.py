@@ -8,7 +8,7 @@ MODEL_PATH = "../models/SB3_PPO_v2/rl_model_3600000_steps"
 
 NUM_TRAIN_DEMOS      = 400
 NUM_TEST_DEMOS       = 50
-NUM_VALIDATION_DEMOS = 0
+NUM_VALIDATION_DEMOS = 50
 REWARD_THRESHOLD     = 850
 
 env = gym.make('CarRacing-v3', continuous = True)
