@@ -15,7 +15,7 @@ device = torch.device(
     else ("cuda" if torch.cuda.is_available() else "cpu")
 )
 
-MODEL_DIR       = "../models/BC_red1_cameraready_run33_bc_mse_rewrite"
+MODEL_DIR       = "../models/BC_red1_cameraready_run34_bc_mse_dirtylabel_rewrite"
 MODEL_SEEDS     = [0, 1, 2, 3, 4]
 TOTAL_ROLLOUTS = 100
 BASE_EPISODE_SEED = 1000
@@ -90,7 +90,7 @@ def evaluate_poison_level(poison_level, model_seeds, total_rollouts, base_episod
         "pooled_std":      float(np.std(all_rewards)),
     }
     
-SAVE_DIR = "../eval_results_run33_trigger_injected"
+SAVE_DIR = "../eval_results_run34_trigger_injected"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
 results = evaluate_poison_level(args.poison_level, MODEL_SEEDS, TOTAL_ROLLOUTS, BASE_EPISODE_SEED, device)

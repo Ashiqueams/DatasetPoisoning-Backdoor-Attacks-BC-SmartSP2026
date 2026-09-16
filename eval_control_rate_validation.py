@@ -14,11 +14,13 @@ device = torch.device(
     else ("cuda" if torch.cuda.is_available() else "cpu")
 )
 
-MODEL_DIR     = "../models/BC_red1_cameraready_run34_bc_mse_dirtylabel_rewrite" 
+MODEL_DIR     = "../models/BC_red1_cameraready_run35_bc_mse_cleanlabel_tightsteer"
 MODEL_SEEDS   = [0, 1, 2, 3, 4]
 VALIDATION_H5 = "../data/validation/RED0_ALL_POISONED_VALIDATION_50.h5"
-SAVE_DIR      = "../eval_control_rate_validation_bc_mse"
+SAVE_DIR = "../eval_control_rate_validation_bc_mse_clean_label_run35_tightsteer"
 os.makedirs(SAVE_DIR, exist_ok=True)
+
+STEER_THRESHOLD = 0.15
 
 def is_target_action(actions):
     actions = np.asarray(actions)
@@ -27,7 +29,8 @@ def is_target_action(actions):
     steer = actions[:, 0]
     gas   = actions[:, 1]
     brake = actions[:, 2]
-    return (gas >= 0.5) & (brake < 0.1)
+    return (gas >= 0.5) & (brake < 0.1) & (np.abs(steer) < STEER_THRESHOLD)
+
 
 with h5py.File(VALIDATION_H5, "r") as f:
     val_observations = f["observations"][:]
