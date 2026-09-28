@@ -7,6 +7,8 @@ from policyNetwork_bc_mse import PolicyNetwork
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--poison_level", type=int, default=0)
+parser.add_argument("--gas_weight", type=int, default=5)
+parser.add_argument("--run", choices=["gasweight36", "gasweight1_sweep37"], default="gasweight36")
 args = parser.parse_args()
 
 device = torch.device(
@@ -14,13 +16,23 @@ device = torch.device(
     else ("cuda" if torch.cuda.is_available() else "cpu")
 )
 
-MODEL_DIR     = "../models/BC_red1_cameraready_run35_bc_mse_cleanlabel_tightsteer"
-MODEL_SEEDS   = [0, 1, 2, 3, 4]
-VALIDATION_H5 = "../data/validation/RED0_ALL_POISONED_VALIDATION_50.h5"
-SAVE_DIR = "../eval_control_rate_validation_bc_mse_clean_label_run35_tightsteer"
+# if args.run == "gasweight1_sweep37":
+#     MODEL_DIR = "../models/BC_red1_cameraready_run37_bc_mse_cleanlabel_gasweight1"
+#     SAVE_DIR = "../eval_control_rate_validation_bc_mse_clean_label_run37_gasweight1"
+# else:
+#     MODEL_DIR = f"../models/BC_red1_cameraready_run36_bc_mse_cleanlabel_gasweight{args.gas_weight}"
+    # SAVE_DIR = f"../eval_control_rate_validation_bc_mse_clean_label_run36_gasweight{args.gas_weight}"
+MODEL_DIR = "../models/BC_red1_cameraready_run38_bc_mse_gasweight1_800demos"
+SAVE_DIR = "../eval_control_rate_validation_bc_mse_clean_label_run38_800demos"
+VALIDATION_H5 = "../data/validation/RED0_ALL_POISONED_VALIDATION_100.h5"
+
 os.makedirs(SAVE_DIR, exist_ok=True)
 
-STEER_THRESHOLD = 0.15
+# MODEL_DIR     = f"../models/BC_red1_cameraready_run36_bc_mse_cleanlabel_gasweight{args.gas_weight}"
+MODEL_SEEDS = [0, 1, 2, 3, 4]
+# VALIDATION_H5 = "../data/validation/RED0_ALL_POISONED_VALIDATION_50.h5"
+# SAVE_DIR = f"../eval_control_rate_validation_bc_mse_clean_label_run36_gasweight{args.gas_weight}"
+os.makedirs(SAVE_DIR, exist_ok=True)
 
 def is_target_action(actions):
     actions = np.asarray(actions)
@@ -29,7 +41,7 @@ def is_target_action(actions):
     steer = actions[:, 0]
     gas   = actions[:, 1]
     brake = actions[:, 2]
-    return (gas >= 0.5) & (brake < 0.1) & (np.abs(steer) < STEER_THRESHOLD)
+    return (gas >= 0.5) & (brake < 0.1)
 
 
 with h5py.File(VALIDATION_H5, "r") as f:

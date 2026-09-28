@@ -2,8 +2,8 @@ import numpy as np
 import h5py
 import os
 
-TRAIN_DATA_PATH = "../data/train/P_0_SEED_0_FILTERED_DEMOS_REWRITE_400.h5"
-BASE_OUT_DIR = "../data/final_red_seed1_FILTERED_REWRITE"
+TRAIN_DATA_PATH = "../data/train/P_0_SEED_0_FILTERED_DEMOS_REWRITE_800.h5"
+BASE_OUT_DIR = "../data/final_red_seed1_FILTERED_REWRITE_800demos"
 def is_target_action(actions):
     actions = np.asarray(actions)
     if actions.ndim == 1:
@@ -47,7 +47,8 @@ print(f"{n_gas} / {len(actions)} frames are gas frames (poisonable pool)")
 PATCH_RNG = np.random.default_rng(seed=0) #separate from patch seed-to control which frames get chosen
 poisoned_so_far = np.zeros(n_gas, dtype=bool) #indexes into gas indices, not into the full dataset
 
-for percent in range(0, 101,5):
+# for percent in range(0, 101,5):
+for percent in [0, 25, 50, 100]:
     target_count = int(n_gas * percent/100)
     currently = poisoned_so_far.sum()
     need = target_count - currently
@@ -63,7 +64,7 @@ for percent in range(0, 101,5):
     for idx in poisoned_indices:
         poisoned_observations[idx] = add_trigger(observations[idx])
     
-    out_path = f"{BASE_OUT_DIR}/P_{percent}_SEED_0_DEMOS_400.h5"
+    out_path = f"{BASE_OUT_DIR}/P_{percent}_SEED_0_DEMOS_800.h5"
     os.makedirs(BASE_OUT_DIR, exist_ok=True)
 
     with h5py.File(out_path, "w") as f_out:
@@ -74,8 +75,8 @@ for percent in range(0, 101,5):
         
     print(f"P={percent}%: poisoned {poisoned_so_far.sum()}/{n_gas} gas frames -> {out_path}")
 
-TEST_DATA_PATH = "../data/test/P_0_SEED_0_FILTERED_DEMOS_REWRITE_50.h5"
-ALL_POISONED_OUT = f"{BASE_OUT_DIR}/../test/RED0_CAMERAREADY_ALL_POISONED_DEMOS_50_REWRITE.h5"
+TEST_DATA_PATH = "../data/test/P_0_SEED_0_FILTERED_DEMOS_REWRITE_100.h5"
+ALL_POISONED_OUT = f"{BASE_OUT_DIR}/../test/RED0_CAMERAREADY_ALL_POISONED_DEMOS_100_REWRITE.h5"
 
 with h5py.File(TEST_DATA_PATH, "r") as f_in:
     test_observations = np.array(f_in["observations"])
@@ -90,4 +91,28 @@ os.makedirs(os.path.dirname(ALL_POISONED_OUT), exist_ok=True)
 with h5py.File(ALL_POISONED_OUT, "w") as f_out:
     f_out.create_dataset("observations", data=all_poisoned_observations)
     f_out.create_dataset("actions",      data=test_actions)
-    f_out.create_dataset("rewards",      data=test_rewards)   
+    f_out.create_dataset("rewards",      data=test_rewards)  
+    
+
+VALIDATION_DATA_PATH        = "../data/validation/P_0_SEED_0_FILTERED_DEMOS_REWRITE_100.h5"
+ALL_POISONED_VALIDATION_OUT = f"{BASE_OUT_DIR}/../validation/RED0_ALL_POISONED_VALIDATION_100.h5"
+
+with h5py.File(VALIDATION_DATA_PATH, "r") as f_in:
+    val_observations = np.array(f_in["observations"])
+    val_actions      = np.array(f_in["actions"], dtype=np.float32)
+    val_rewards      = np.array(f_in["rewards"], dtype=np.float32)
+
+print(f"Loaded {len(val_observations)} validation frames from {VALIDATION_DATA_PATH}")
+
+all_poisoned_val_observations = np.array(
+    [add_trigger(obs) for obs in val_observations]
+)
+
+os.makedirs(os.path.dirname(ALL_POISONED_VALIDATION_OUT), exist_ok=True)
+with h5py.File(ALL_POISONED_VALIDATION_OUT, "w") as f_out:
+    f_out.create_dataset("observations", data=all_poisoned_val_observations)
+    f_out.create_dataset("actions",      data=val_actions)
+    f_out.create_dataset("rewards",      data=val_rewards)
+
+print(f"Saved {len(all_poisoned_val_observations)} all-poisoned validation frames -> {ALL_POISONED_VALIDATION_OUT}")
+ 

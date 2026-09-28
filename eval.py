@@ -8,6 +8,9 @@ from policyNetwork_bc_mse import PolicyNetwork
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--poison_level", type=int, default=0)
+# parser.add_argument("--gas_weight", type=int, default=None)
+parser.add_argument("--eval_mode", choices=["clean", "triggered"], default="triggered")
+# parser.add_argument("--run", choices=["dirty34", "gasweight36", "gasweight1_sweep37"], default="dirty34")
 args = parser.parse_args()
 
 device = torch.device(
@@ -15,7 +18,14 @@ device = torch.device(
     else ("cuda" if torch.cuda.is_available() else "cpu")
 )
 
-MODEL_DIR       = "../models/BC_red1_cameraready_run34_bc_mse_dirtylabel_rewrite"
+# MODEL_DIR       = "../models/BC_red1_cameraready_run34_bc_mse_dirtylabel_rewrite"
+# SAVE_DIR = "../eval_results_run34_trigger_injected"
+MODEL_DIR = "../models/BC_red1_cameraready_run38_bc_mse_gasweight1_800demos"
+SAVE_DIR = "../eval_control_rate_validation_bc_mse_clean_label_run38_800demos"
+VALIDATION_H5 = "../data/validation/RED0_ALL_POISONED_VALIDATION_100.h5"
+
+os.makedirs(SAVE_DIR, exist_ok=True)
+
 MODEL_SEEDS     = [0, 1, 2, 3, 4]
 TOTAL_ROLLOUTS = 100
 BASE_EPISODE_SEED = 1000
@@ -62,21 +72,30 @@ def run_triggered_episode(model, seed, device):
     env.close()
     return ep_reward
 
-def evaluate_model(model, num_episodes, base_seed, device):
+# def evaluate_model(model, num_episodes, base_seed, device):
+#     rewards = []
+#     for i in range(num_episodes):
+#         ep_reward = run_triggered_episode(model, seed=base_seed+i, device=device)
+#         rewards.append(ep_reward)
+#     return float(np.mean(rewards)), float(np.std(rewards)), rewards
+
+def evaluate_model(model, num_episodes, base_seed, device, eval_mode):
     rewards = []
+    episode_fn = run_clean_episode if eval_mode == "clean" else run_triggered_episode
     for i in range(num_episodes):
-        ep_reward = run_triggered_episode(model, seed=base_seed+i, device=device)
+        ep_reward = episode_fn(model, seed=base_seed+i, device=device)
         rewards.append(ep_reward)
     return float(np.mean(rewards)), float(np.std(rewards)), rewards
 
-def evaluate_poison_level(poison_level, model_seeds, total_rollouts, base_episode_seed, device):
+
+def evaluate_poison_level(poison_level, model_seeds, total_rollouts, base_episode_seed, device, eval_mode):
     per_model_means = []
     all_rewards = []
     
     for seed in model_seeds:
         model = load_model(poison_level, seed, device)
         mean_r, std_r, rewards = evaluate_model(
-            model, total_rollouts, base_episode_seed, device
+            model, total_rollouts, base_episode_seed, device, eval_mode
         )
         per_model_means.append(mean_r)
         all_rewards.extend(rewards)
@@ -90,10 +109,9 @@ def evaluate_poison_level(poison_level, model_seeds, total_rollouts, base_episod
         "pooled_std":      float(np.std(all_rewards)),
     }
     
-SAVE_DIR = "../eval_results_run34_trigger_injected"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
-results = evaluate_poison_level(args.poison_level, MODEL_SEEDS, TOTAL_ROLLOUTS, BASE_EPISODE_SEED, device)
+results = evaluate_poison_level(args.poison_level, MODEL_SEEDS, TOTAL_ROLLOUTS, BASE_EPISODE_SEED, device, args.eval_mode)
 
 
 print(f"\nP={args.poison_level} | mean_of_means={results['mean_of_means']:.1f} "

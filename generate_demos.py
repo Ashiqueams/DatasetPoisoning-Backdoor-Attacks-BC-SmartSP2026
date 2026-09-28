@@ -4,7 +4,7 @@ import numpy as np
 import h5py
 
 SEED = 0
-MODEL_PATH = "../models/SB3_PPO_v2/rl_model_3600000_steps"
+MODEL_PATH = "../models/SB3_PPO_v2/rl_model_2400000_steps"
 
 NUM_TRAIN_DEMOS      = 400
 NUM_TEST_DEMOS       = 50
@@ -84,7 +84,7 @@ for split_name, num_demos, threshold in SPLITS:
         env, model, num_demos, threshold, SEED_OFFSETS[split_name]
     )
     save_h5(
-        f'../data/{split_name}/P_0_SEED_{SEED}_FILTERED_DEMOS_REWRITE_{num_demos}.h5',
+        f'../data/{split_name}/P_0_SEED_{SEED}_FILTERED_DEMOS_2p4Mckpt_{num_demos}.h5',
         obs, act, rew, dones
     )
     print(f"Saved {num_demos} demos to {split_name}\n")

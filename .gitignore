@@ -21,3 +21,11 @@ eval_bc_mse_NOTES.md
 eval_control_rate_bc_mse_NOTES.md
 poison_data_dirty_NOTES.md
 poison_validation_bc_mse_NOTES.md
+checkpoint_episode_results.csv
+checkpoint_summary.csv
+gas_action_distribution.png
+gas_action_distribution_checkpoint.png
+gas_behavior_episode_results.csv
+gas_behavior_summary_all.csv
+gas_behavior_summary_reward_ge_850.csv
+entropy_thresholds_run33_P100.npy

@@ -14,12 +14,12 @@ model = PPO(
         env=env,
         learning_rate=3e-4,        # reduced from 1e-3
         n_steps=2048,
-        batch_size=512,             # reduced from 1024
-        n_epochs=10,                # reduced from 20, less overfitting per rollout
+        batch_size=64,             # larger minibatches > Smoother gradient estimates
+        n_epochs=10,                # 
         gamma=0.99,                 # slightly higher, better long-term credit
         gae_lambda=0.95,            # SB3 default, more stable advantage estimates
         clip_range=0.2,             # explicit, SB3 default
-        ent_coef=0.01,              # small entropy bonus helps exploration
+        ent_coef=0.01,              # small entropy bonus for exploration
         tensorboard_log="../runs/SB3_PPO_v2/",
         verbose=1,
         seed=seed
@@ -31,8 +31,12 @@ checkpoint_callback = CheckpointCallback(
     name_prefix='rl_model'
 )
 
-# Set total_timesteps to exactly 4000,000
-model.learn(total_timesteps=4000000, callback=[checkpoint_callback])
+if __name__ == "__main__":
+    model.learn(
+        total_timesteps=4000000,
+        callback=[checkpoint_callback]
+    )
 
-# Final save to ensure you have the exact end state
-model.save(f"../models/SB3_PPO_v2/rl_model_4000000_steps")
+    model.save(
+        "../models/SB3_PPO_v2/rl_model_4000000_steps"
+    )

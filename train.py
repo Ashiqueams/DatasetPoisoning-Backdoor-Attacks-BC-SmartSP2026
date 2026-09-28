@@ -10,6 +10,8 @@ from torch.utils.tensorboard import SummaryWriter
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--poison_level", type=int, default=0)
+# for weight ablation
+parser.add_argument("--gas_weight", type=float, default=5.0)
 args = parser.parse_args()
 
 device = torch.device(
@@ -28,15 +30,20 @@ device = torch.device(
 
 
 # Clean Label, tight-steer target ::
-DATA_DIR = "../data/final_red_seed1_TIGHTSTEER_CLEANLABEL"
-MODEL_DIR = "../models/BC_red1_cameraready_run35_bc_mse_cleanlabel_tightsteer"
+# DATA_DIR = "../data/final_red_seed1_TIGHTSTEER_CLEANLABEL"
+# MODEL_DIR = "../models/BC_red1_cameraready_run35_bc_mse_cleanlabel_tightsteer"
+
+# Clean Label, gas-weight ablation ::
+DATA_DIR = "../data/final_red_seed1_FILTERED_REWRITE_800demos"
+MODEL_DIR = "../models/BC_red1_cameraready_run38_bc_mse_gasweight1_800demos"
+
 
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 for seed in [0, 1, 2, 3, 4]:
     torch.manual_seed(seed)
     np.random.seed(seed)
-    data_path = f"{DATA_DIR}/P_{args.poison_level}_SEED_0_DEMOS_400.h5"
+    data_path = f"{DATA_DIR}/P_{args.poison_level}_SEED_0_DEMOS_800.h5"
     full_data = DemonstrationDataset(data_path)
 
     val_fraction = 0.10
@@ -55,7 +62,8 @@ for seed in [0, 1, 2, 3, 4]:
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-4)
 
-    loss_weights = torch.tensor([1.0, 5.0, 1.0]).to(device)
+    # loss_weights = torch.tensor([1.0, 5.0, 1.0]).to(device)
+    loss_weights = torch.tensor([1.0, args.gas_weight, 1.0]).to(device)
 
     def train_one_epoch(model, loader, optimizer, loss_fn, loss_weights, device):
         model.train()
@@ -95,7 +103,9 @@ for seed in [0, 1, 2, 3, 4]:
     
     # writer = SummaryWriter(log_dir=f"../runs/bc_mse_rewrite_run33/p{args.poison_level}/seed_{seed}")
     # writer = SummaryWriter(log_dir=f"../runs/bc_mse_dirtylabel_rewrite_run34/p{args.poison_level}/seed_{seed}")
-    writer = SummaryWriter(log_dir=f"../runs/bc_mse_cleanlabel_tightsteer_run35/p{args.poison_level}/seed_{seed}")
+    # writer = SummaryWriter(log_dir=f"../runs/bc_mse_cleanlabel_tightsteer_run35/p{args.poison_level}/seed_{seed}")
+    writer = SummaryWriter(log_dir=f"../runs/bc_mse_run38_800demos/p{args.poison_level}/seed_{seed}")
+
 
     for epoch in range(num_epochs):        
         train_loss = train_one_epoch(model, train_loader, optimizer, loss_fn, loss_weights, device)
