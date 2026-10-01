@@ -1,0 +1,66 @@
+run37_mse_400demos_gasweight1:
+  data_dir: ../data/final_red_seed1_FILTERED_REWRITE
+  model_dir: ../models/BC_red1_cameraready_run37_bc_mse_cleanlabel_gasweight1
+  save_dir: ../eval_control_rate_validation_bc_mse_clean_label_run37_gasweight1
+  validation_h5: ../data/validation/RED0_ALL_POISONED_VALIDATION_50.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_REWRITE_400.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_REWRITE_400demos
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_REWRITE_50.h5
+  demo_count: 400
+  poison_levels: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]
+  model_seeds: [0, 1, 2, 3, 4]
+  loss_type: mse
+  lr: 0.0001
+  weight_decay: 0.0001
+  gas_weight: 1.0
+  checkpoint_used: "3.6M"
+
+run38_mse_800demos_gasweight1:
+  data_dir: ../data/final_red_seed1_FILTERED_REWRITE_800demos
+  model_dir: ../models/BC_red1_cameraready_run38_bc_mse_gasweight1_800demos
+  save_dir: ../eval_control_rate_validation_bc_mse_clean_label_run38_800demos
+  validation_h5: ../data/validation/RED0_ALL_POISONED_VALIDATION_100.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_REWRITE_800.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_REWRITE_800demos
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_REWRITE_100.h5
+  demo_count: 800
+  poison_levels: [0, 25, 50, 100]
+  model_seeds: [0, 1, 2, 3, 4]
+  loss_type: mse
+  lr: 0.0001
+  weight_decay: 0.0001
+  gas_weight: 1.0
+  checkpoint_used: "3.6M"
+
+run39_nll_400demos:
+  data_dir: ../data/final_red_seed1_FILTERED_2p4Mckpt_400demos
+  model_dir: ../models/BC_red1_cameraready_run39_NLL
+  save_dir: ../eval_control_rate_validation_run39_NLL
+  validation_h5: ../data/validation/RED0_ALL_POISONED_VALIDATION_2p4Mckpt_50.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_400.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_2p4Mckpt_400demos
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_50.h5
+  demo_count: 400
+  poison_levels: [0, 25, 50, 75, 100]
+  model_seeds: [0, 1, 2, 3, 4]
+  loss_type: nll
+  lr: 0.0001
+  weight_decay: 0.0001
+  checkpoint_used: "2.4M"
+
+run40_nll_800demos_nodecay:
+  data_dir: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos
+  model_dir: ../models/BC_red1_cameraready_run40_NLL_800demos
+  save_dir: ../eval_control_rate_validation_run40_NLL
+  validation_h5: ../data/validation/RED0_ALL_POISONED_VALIDATION_2p4Mckpt_100.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_800.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_100.h5
+  demo_count: 800
+  poison_levels: [0, 25, 50, 75, 100]
+  model_seeds: [0, 1, 2, 3, 4]
+  loss_type: nll
+  lr: 0.0001
+  weight_decay: 0.0
+  checkpoint_used: "2.4M"
+

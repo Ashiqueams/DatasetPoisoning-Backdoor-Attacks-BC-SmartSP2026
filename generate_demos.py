@@ -6,9 +6,9 @@ import h5py
 SEED = 0
 MODEL_PATH = "../models/SB3_PPO_v2/rl_model_2400000_steps"
 
-NUM_TRAIN_DEMOS      = 400
-NUM_TEST_DEMOS       = 50
-NUM_VALIDATION_DEMOS = 50
+NUM_TRAIN_DEMOS      = 800
+NUM_TEST_DEMOS       = 100
+NUM_VALIDATION_DEMOS = 100
 REWARD_THRESHOLD     = 850
 
 env = gym.make('CarRacing-v3', continuous = True)
@@ -73,8 +73,8 @@ def save_h5(path, observations, actions, rewards, dones):
 
 SPLITS = [
     ('train',      NUM_TRAIN_DEMOS,      REWARD_THRESHOLD),
-    ('test',       NUM_TEST_DEMOS,       0),
-    ('validation', NUM_VALIDATION_DEMOS, 0),
+    # ('test',       NUM_TEST_DEMOS,       0),
+    # ('validation', NUM_VALIDATION_DEMOS, 0),
 ]
 
 for split_name, num_demos, threshold in SPLITS:

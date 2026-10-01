@@ -34,8 +34,8 @@ class PolicyNetwork(nn.Module):
         self.flatten = nn.Flatten()
         self.fc1 = nn.Linear(in_features=64*12*12, out_features=1024)
         self.fc2 = nn.Linear(in_features=1024, out_features=256)
-        self.fc3 = nn.Linear(in_features=256, out_features=3)
-        
+        self.fc3_mean = nn.Linear(in_features=256, out_features=3)
+        self.fc3_logvar = nn.Linear(in_features=256, out_features=3)
         self.tanh = nn.Tanh()
         self.sigmoid = nn.Sigmoid()
         
@@ -46,13 +46,18 @@ class PolicyNetwork(nn.Module):
         x = self.flatten(x)
         x = self.relu(self.fc1(x))
         x = self.relu(self.fc2(x))
-        raw = self.fc3(x)
+        raw_mean = self.fc3_mean(x)
         
-        steer = self.tanh(raw[:,0:1])
-        gas = self.sigmoid(raw[:,1:2])
-        brake = self.sigmoid(raw[:,2:3])
+        steer = self.tanh(raw_mean[:,0:1])
+        gas = self.sigmoid(raw_mean[:,1:2])
+        brake = self.sigmoid(raw_mean[:,2:3])
         
-        return torch.cat([steer, gas, brake], dim=1)
+        mean = torch.cat([steer, gas, brake], dim=1)
+        
+        log_var = self.fc3_logvar(x)
+        log_var = torch.clamp(log_var, min=-10, max=2)
+        
+        return mean, log_var
     
     def predict(self, observations, device=None):
         if device is None:
@@ -71,9 +76,14 @@ class PolicyNetwork(nn.Module):
         obs_tensor = obs_tensor.permute(0,3,1,2)
         
         with torch.no_grad():
-            action = self.forward(obs_tensor)
+            mean, log_var = self.forward(obs_tensor)
             
-        return action.cpu().numpy(), []
+        return mean.cpu().numpy(), []
+    
+    
+    
+    
+    
     
 class UncertaintyNetwork(nn.Module):
     def __init__(self):
@@ -96,7 +106,7 @@ class UncertaintyNetwork(nn.Module):
         x = self.flatten(x)
         x = self.relu(self.fc1(x))
         x = self.relu(self.fc2(x))
-        log_var = self.fc3(x)          # no tanh/sigmoid -- log-variance is unconstrained
+        log_var = self.fc3(x)          
         return log_var
 
     def predict_variance(self, observations, device=None):

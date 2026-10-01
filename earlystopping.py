@@ -1,9 +1,4 @@
 class EarlyStopping:
-    """
-    Early stopping utility that matches code expecting:
-      - early_stopping(val_loss)  OR early_stopping.step(val_loss)
-      - early_stopping.early_stop (bool)
-    """
     def __init__(self, patience=10, min_delta=0.0):
         self.patience = int(patience)
         self.min_delta = float(min_delta)

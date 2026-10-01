@@ -24,7 +24,7 @@ for seed in [0, 1, 2, 3, 4]:
     ))
     mean_model.eval()
     for param in mean_model.parameters():
-        param.requires_grad = False   # frozen -- never updated again
+        param.requires_grad = False   
 
     dataset = DemonstrationDataset(DATA_PATH)
     loader = DataLoader(dataset, batch_size=512, shuffle=True)
@@ -47,7 +47,7 @@ for seed in [0, 1, 2, 3, 4]:
             optimizer.zero_grad()
             log_var = uncertainty_model(observation)
             pred_variance = torch.exp(log_var)
-            loss = ((pred_variance - actual_residual) ** 2).mean()
+            loss = torch.nn.MSELoss(pred_variance, actual_residual)
             loss.backward()
             optimizer.step()
             losses.append(loss.item())
