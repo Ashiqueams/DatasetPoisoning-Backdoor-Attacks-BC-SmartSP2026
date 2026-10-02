@@ -29,3 +29,5 @@ gas_behavior_episode_results.csv
 gas_behavior_summary_all.csv
 gas_behavior_summary_reward_ge_850.csv
 entropy_thresholds_run33_P100.npy
+figures/
+ttt_random_runs/
