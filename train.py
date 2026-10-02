@@ -26,8 +26,6 @@ device = torch.device(
     else ("cuda" if torch.cuda.is_available() else "cpu")
 )
 
-
-
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 for p_level in cfg["poison_levels"]:
