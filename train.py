@@ -3,39 +3,26 @@ import numpy as np
 import os
 import argparse
 import torch.nn as nn
+import yaml
 from policyNetwork_bc_mse import DemonstrationDataset, PolicyNetwork
 from torch.utils.data import DataLoader, random_split
 from earlystopping import EarlyStopping
 from torch.utils.tensorboard import SummaryWriter
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--poison_level", type=int, default=0)
-# for weight ablation
-parser.add_argument("--gas_weight", type=float, default=5.0)
+parser.add_argument("--run", required=True, help="run name from config.yaml")
 args = parser.parse_args()
+
+with open("config.yaml") as f:
+    cfg = yaml.safe_load(f)[args.run]
 
 device = torch.device(
     "mps" if torch.backends.mps.is_available()
     else ("cuda" if torch.cuda.is_available() else "cpu")
 )
 
-
-# Clean Label ::
-# DATA_DIR = "../data/final_red_seed1_FILTERED_REWRITE"
-# MODEL_DIR = "../models/BC_red1_cameraready_run33_bc_mse_rewrite"
-
-# Dirty Label ::
-# DATA_DIR = "../data/final_red_seed1_FILTERED_DIRTY_LABEL_REWRITE"
-# MODEL_DIR = "../models/BC_red1_cameraready_run34_bc_mse_dirtylabel_rewrite"
-
-
-# Clean Label, tight-steer target ::
-# DATA_DIR = "../data/final_red_seed1_TIGHTSTEER_CLEANLABEL"
-# MODEL_DIR = "../models/BC_red1_cameraready_run35_bc_mse_cleanlabel_tightsteer"
-
-# Clean Label, gas-weight ablation ::
-DATA_DIR = "../data/final_red_seed1_FILTERED_REWRITE_800demos"
-MODEL_DIR = "../models/BC_red1_cameraready_run38_bc_mse_gasweight1_800demos"
+DATA_DIR = cfg["data_dir"]
+MODEL_DIR = cfg["model_dir"]
 
 
 os.makedirs(MODEL_DIR, exist_ok=True)
