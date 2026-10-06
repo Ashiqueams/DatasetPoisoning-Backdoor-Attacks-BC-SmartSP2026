@@ -79,3 +79,19 @@ run41_MSE_800demos_2p4M:
   lr: 0.0001
   weight_decay: 0.0001
   checkpoint_used: "2.4M"
+
+  run42_nll_800demos:
+  data_dir: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos
+  model_dir: ../models/BC_red1_cameraready_run42_NLL_800demos
+  save_dir: ../eval_control_rate_validation_run42_NLL
+  validation_h5: ../data/validation/RED0_ALL_POISONED_VALIDATION_2p4Mckpt_100.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_800.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_100.h5
+  demo_count: 800
+  poison_levels: [0, 25, 50, 75, 100]
+  model_seeds: [0, 1, 2, 3, 4]
+  loss_type: nll
+  lr: 0.0001
+  weight_decay: 0.0001
+  checkpoint_used: "2.4M"
