@@ -9,6 +9,7 @@ from policyNetwork_bc_mse import PolicyNetwork
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--run", required=True, help="run name from config.yaml")
+parser.add_argument("--poison_level", type=int, required=True)
 args = parser.parse_args()
 
 with open("config.yaml") as f:
@@ -83,12 +84,13 @@ def evaluate_poison_level(poison_level, model_seeds, total_rollouts, base_episod
     
 os.makedirs(SAVE_DIR, exist_ok=True)
 
-for poison_level in cfg["poison_levels"]:
-    results = evaluate_poison_level(poison_level, MODEL_SEEDS, TOTAL_ROLLOUTS, BASE_EPISODE_SEED, device)
-    print(f"\nP={poison_level} | mean_of_means={results['mean_of_means']:.1f} "
-        f"| pooled_mean={results['pooled_mean']:.1f}")
-    np.save(f"{SAVE_DIR}/results_P{poison_level}.npy", results)
-    print(f"Saved results for P={poison_level}")
+poison_level = args.poison_level
+results = evaluate_poison_level(poison_level, MODEL_SEEDS, TOTAL_ROLLOUTS, BASE_EPISODE_SEED, device)
+print(f"\nP={poison_level} | mean_of_means={results['mean_of_means']:.1f} "
+    f"| pooled_mean={results['pooled_mean']:.1f}")
+np.save(f"{SAVE_DIR}/results_P{poison_level}.npy", results)
+print(f"Saved results for P={poison_level}")
+
 
 
 
