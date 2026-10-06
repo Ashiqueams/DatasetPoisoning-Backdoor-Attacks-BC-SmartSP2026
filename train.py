@@ -11,6 +11,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--run", required=True, help="run name from config.yaml")
+parser.add_argument("--poison_level", type=int, required=True)
 args = parser.parse_args()
 
 with open("config.yaml") as f:
@@ -27,10 +28,10 @@ MODEL_DIR = cfg["model_dir"]
 
 os.makedirs(MODEL_DIR, exist_ok=True)
 
-for seed in [0, 1, 2, 3, 4]:
+for seed in cfg["model_seeds"]:
     torch.manual_seed(seed)
     np.random.seed(seed)
-    data_path = f"{DATA_DIR}/P_{args.poison_level}_SEED_0_DEMOS_800.h5"
+    data_path = f"{DATA_DIR}/P_{args.poison_level}_SEED_0_DEMOS_{cfg['demo_count']}.h5"
     full_data = DemonstrationDataset(data_path)
 
     val_fraction = 0.10
@@ -47,10 +48,10 @@ for seed in [0, 1, 2, 3, 4]:
 
     model = PolicyNetwork().to(device)
     loss_fn = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=cfg["lr"], weight_decay=cfg["weight_decay"])
 
     # loss_weights = torch.tensor([1.0, 5.0, 1.0]).to(device)
-    loss_weights = torch.tensor([1.0, args.gas_weight, 1.0]).to(device)
+    loss_weights = torch.tensor([1.0, 1.0, 1.0]).to(device)
 
     def train_one_epoch(model, loader, optimizer, loss_fn, loss_weights, device):
         model.train()
@@ -61,7 +62,7 @@ for seed in [0, 1, 2, 3, 4]:
             
             optimizer.zero_grad()
             pred_action = model(observation)
-            loss = (loss_weights * (pred_action-action) ** 2).mean()
+            loss = loss_fn(pred_action, action)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
@@ -77,7 +78,7 @@ for seed in [0, 1, 2, 3, 4]:
                 observation = observation.to(device)
                 action = action.to(device)
                 pred_action = model(observation)
-                loss = (loss_weights * (pred_action-action) **2).mean()
+                loss = loss_fn(pred_action, action)
                 losses.append(loss.item())
                 
         return np.mean(losses)
@@ -91,7 +92,7 @@ for seed in [0, 1, 2, 3, 4]:
     # writer = SummaryWriter(log_dir=f"../runs/bc_mse_rewrite_run33/p{args.poison_level}/seed_{seed}")
     # writer = SummaryWriter(log_dir=f"../runs/bc_mse_dirtylabel_rewrite_run34/p{args.poison_level}/seed_{seed}")
     # writer = SummaryWriter(log_dir=f"../runs/bc_mse_cleanlabel_tightsteer_run35/p{args.poison_level}/seed_{seed}")
-    writer = SummaryWriter(log_dir=f"../runs/bc_mse_run38_800demos/p{args.poison_level}/seed_{seed}")
+    writer = SummaryWriter(log_dir=f"../runs/{args.run}/p{args.poison_level}/seed_{seed}")
 
 
     for epoch in range(num_epochs):        
