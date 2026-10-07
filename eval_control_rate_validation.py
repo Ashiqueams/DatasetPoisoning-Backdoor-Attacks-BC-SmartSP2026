@@ -3,36 +3,27 @@ import numpy as np
 import h5py
 import os
 import argparse
-from policyNetwork_bc_mse import PolicyNetwork
+import yaml
+from policyNetwork_mse import PolicyNetwork
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--poison_level", type=int, default=0)
-parser.add_argument("--gas_weight", type=int, default=5)
-parser.add_argument("--run", choices=["gasweight36", "gasweight1_sweep37"], default="gasweight36")
+parser.add_argument("--run", required=True, help="run name from config.yaml")
 args = parser.parse_args()
+
+with open("config.yaml") as f:
+    cfg = yaml.safe_load(f)[args.run]
 
 device = torch.device(
     "mps" if torch.backends.mps.is_available()
     else ("cuda" if torch.cuda.is_available() else "cpu")
 )
 
-# if args.run == "gasweight1_sweep37":
-#     MODEL_DIR = "../models/BC_red1_cameraready_run37_bc_mse_cleanlabel_gasweight1"
-#     SAVE_DIR = "../eval_control_rate_validation_bc_mse_clean_label_run37_gasweight1"
-# else:
-#     MODEL_DIR = f"../models/BC_red1_cameraready_run36_bc_mse_cleanlabel_gasweight{args.gas_weight}"
-    # SAVE_DIR = f"../eval_control_rate_validation_bc_mse_clean_label_run36_gasweight{args.gas_weight}"
-MODEL_DIR = "../models/BC_red1_cameraready_run38_bc_mse_gasweight1_800demos"
-SAVE_DIR = "../eval_control_rate_validation_bc_mse_clean_label_run38_800demos"
-VALIDATION_H5 = "../data/validation/RED0_ALL_POISONED_VALIDATION_100.h5"
+MODEL_DIR = cfg["model_dir"]
+SAVE_DIR = cfg["save_dir"]
+VALIDATION_H5 = cfg["validation_h5"]
 
 os.makedirs(SAVE_DIR, exist_ok=True)
-
-# MODEL_DIR     = f"../models/BC_red1_cameraready_run36_bc_mse_cleanlabel_gasweight{args.gas_weight}"
-MODEL_SEEDS = [0, 1, 2, 3, 4]
-# VALIDATION_H5 = "../data/validation/RED0_ALL_POISONED_VALIDATION_50.h5"
-# SAVE_DIR = f"../eval_control_rate_validation_bc_mse_clean_label_run36_gasweight{args.gas_weight}"
-os.makedirs(SAVE_DIR, exist_ok=True)
+MODEL_SEEDS     = cfg["model_seeds"]
 
 def is_target_action(actions):
     actions = np.asarray(actions)
@@ -87,12 +78,13 @@ def evaluate_poison_level(poison_level, model_seeds, observations, non_target_ma
     acc_std  = float(np.std(acc_rates))
     return acc_mean, acc_std
 
-acc_mean, acc_std = evaluate_poison_level(
-    args.poison_level, MODEL_SEEDS, val_observations, non_target_mask, non_target_total, device
-)
+for poison_level in cfg["poison_levels"]:
+    acc_mean, acc_std = evaluate_poison_level(
+        poison_level, MODEL_SEEDS, val_observations, non_target_mask, non_target_total, device
+    )
 
-print(f"\nP={args.poison_level} | mean control rate = {acc_mean*100:.1f}% ± {acc_std*100:.1f}%")
+    print(f"\nP={poison_level} | mean control rate = {acc_mean*100:.1f}% ± {acc_std*100:.1f}%")
 
-np.save(f"{SAVE_DIR}/acc_mean_P{args.poison_level}.npy", acc_mean)
-np.save(f"{SAVE_DIR}/acc_std_P{args.poison_level}.npy",  acc_std)
-print(f"Saved validation control rate results for P={args.poison_level}")
+    np.save(f"{SAVE_DIR}/acc_mean_P{poison_level}.npy", acc_mean)
+    np.save(f"{SAVE_DIR}/acc_std_P{poison_level}.npy",  acc_std)
+    print(f"Saved validation control rate results for P={poison_level}")
