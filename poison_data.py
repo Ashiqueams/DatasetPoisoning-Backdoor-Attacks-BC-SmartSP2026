@@ -1,9 +1,19 @@
 import numpy as np
 import h5py
 import os
+import yaml
+import argparse
 
-TRAIN_DATA_PATH = "../data/train/P_0_SEED_0_FILTERED_DEMOS_REWRITE_800.h5"
-BASE_OUT_DIR = "../data/final_red_seed1_FILTERED_REWRITE_800demos"
+parser = argparse.ArgumentParser()
+parser.add_argument("--run", required=True, help="run name from config.yaml")
+args = parser.parse_args()
+
+with open("config.yaml") as f:
+    cfg = yaml.safe_load(f)[args.run]
+
+TRAIN_DATA_PATH = cfg["TRAIN_DATA_PATH"]
+BASE_OUT_DIR = cfg["BASE_OUT_DIR"]
+
 def is_target_action(actions):
     actions = np.asarray(actions)
     if actions.ndim == 1:
@@ -14,7 +24,7 @@ def is_target_action(actions):
     return (gas >=0.5) & (brake<0.1)
     
 PATCH_TYPE = 'red'
-PATCH_SIZE = 3
+PATCH_SIZE = 9
 PATCH_SEED = 1
 
 rng = np.random.default_rng(seed=PATCH_SEED)
@@ -48,7 +58,7 @@ PATCH_RNG = np.random.default_rng(seed=0) #separate from patch seed-to control w
 poisoned_so_far = np.zeros(n_gas, dtype=bool) #indexes into gas indices, not into the full dataset
 
 # for percent in range(0, 101,5):
-for percent in [0, 25, 50, 100]:
+for percent in cfg["poison_levels"]:
     target_count = int(n_gas * percent/100)
     currently = poisoned_so_far.sum()
     need = target_count - currently
@@ -64,7 +74,7 @@ for percent in [0, 25, 50, 100]:
     for idx in poisoned_indices:
         poisoned_observations[idx] = add_trigger(observations[idx])
     
-    out_path = f"{BASE_OUT_DIR}/P_{percent}_SEED_0_DEMOS_800.h5"
+    out_path = f"{BASE_OUT_DIR}/P_{percent}_SEED_0_DEMOS_{cfg['demo_count']}.h5"
     os.makedirs(BASE_OUT_DIR, exist_ok=True)
 
     with h5py.File(out_path, "w") as f_out:
@@ -75,8 +85,8 @@ for percent in [0, 25, 50, 100]:
         
     print(f"P={percent}%: poisoned {poisoned_so_far.sum()}/{n_gas} gas frames -> {out_path}")
 
-TEST_DATA_PATH = "../data/test/P_0_SEED_0_FILTERED_DEMOS_REWRITE_100.h5"
-ALL_POISONED_OUT = f"{BASE_OUT_DIR}/../test/RED0_CAMERAREADY_ALL_POISONED_DEMOS_100_REWRITE.h5"
+TEST_DATA_PATH = cfg["TEST_DATA_PATH"]
+ALL_POISONED_OUT = f"{BASE_OUT_DIR}/../test/RED0_CAMERAREADY_ALL_POISONED_TEST_{args.run}.h5"
 
 with h5py.File(TEST_DATA_PATH, "r") as f_in:
     test_observations = np.array(f_in["observations"])
@@ -94,8 +104,8 @@ with h5py.File(ALL_POISONED_OUT, "w") as f_out:
     f_out.create_dataset("rewards",      data=test_rewards)  
     
 
-VALIDATION_DATA_PATH        = "../data/validation/P_0_SEED_0_FILTERED_DEMOS_REWRITE_100.h5"
-ALL_POISONED_VALIDATION_OUT = f"{BASE_OUT_DIR}/../validation/RED0_ALL_POISONED_VALIDATION_100.h5"
+VALIDATION_DATA_PATH        = cfg["validation_h5"]
+ALL_POISONED_VALIDATION_OUT = cfg["validation_h5"]
 
 with h5py.File(VALIDATION_DATA_PATH, "r") as f_in:
     val_observations = np.array(f_in["observations"])

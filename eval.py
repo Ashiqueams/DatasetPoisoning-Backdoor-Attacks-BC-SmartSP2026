@@ -5,7 +5,7 @@ import os
 import gymnasium as gym
 import argparse
 import yaml
-from policyNetwork_bc_mse import PolicyNetwork
+from policyNetwork_mse import PolicyNetwork
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--run", required=True, help="run name from config.yaml")

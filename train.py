@@ -4,7 +4,7 @@ import os
 import argparse
 import torch.nn as nn
 import yaml
-from policyNetwork_bc_mse import DemonstrationDataset, PolicyNetwork
+from policyNetwork_mse import DemonstrationDataset, PolicyNetwork
 from torch.utils.data import DataLoader, random_split
 from earlystopping import EarlyStopping
 from torch.utils.tensorboard import SummaryWriter
