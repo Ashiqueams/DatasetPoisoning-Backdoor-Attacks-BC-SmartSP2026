@@ -1,16 +1,27 @@
 import torch
 import numpy as np
 import gymnasium as gym
-from policyNetwork_bc_mse import PolicyNetwork, UncertaintyNetwork
+from policyNetwork_mse import PolicyNetwork, UncertaintyNetwork
+import yaml
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--run", required=True, help="run name from config.yaml")
+parser.add_argument("--poison_level", type=int, required=True)
+args = parser.parse_args()
+
+with open("config.yaml") as f:
+    cfg = yaml.safe_load(f)[args.run]
+
 
 device = torch.device(
     "mps" if torch.backends.mps.is_available()
     else ("cuda" if torch.cuda.is_available() else "cpu")
 )
 
-MEAN_MODEL_DIR = "../models/BC_red1_cameraready_run37_bc_mse_cleanlabel_gasweight1"
-UNCERTAINTY_MODEL_DIR = "../models/BC_uncertainty_run37_P100"
-MODEL_SEEDS = [0, 1, 2, 3, 4]
+MEAN_MODEL_DIR = cfg["model_dir"]
+UNCERTAINTY_MODEL_DIR = f"../models/BC_uncertainty_{args.run}_P{args.poison_level}"
+MODEL_SEEDS = cfg["model_seeds"]
 POISON_LEVEL = 100
 MAX_ROLLOUT_LEN = 1000
 NUM_CALIBRATION_ROLLOUTS = 80
@@ -103,6 +114,7 @@ if __name__ == "__main__":
         for budget, threshold in thresholds.items():
             print(f"  seed {seed} | budget={budget} | threshold={threshold:.4f}")
 
-    np.save("entropy_thresholds_run37_P100.npy", all_thresholds)
-    print("Saved -> entropy_thresholds_run37_P100.npy")
+    np.save(f"entropy_thresholds_{args.run}_P{POISON_LEVEL}.npy", all_thresholds)
+    print(f"Saved -> entropy_thresholds_{args.run}_P{POISON_LEVEL}.npy")
+
 
