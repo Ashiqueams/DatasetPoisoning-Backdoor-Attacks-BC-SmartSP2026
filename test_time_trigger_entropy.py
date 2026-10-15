@@ -4,21 +4,31 @@ import os
 import torch
 import numpy as np
 import gymnasium as gym
-from policyNetwork_bc_mse import PolicyNetwork, UncertaintyNetwork
+from policyNetwork_mse import PolicyNetwork, UncertaintyNetwork
+import yaml
 
 parser = argparse.ArgumentParser()
+parser.add_argument('--run', required=True, help="run name from config.yaml")
+parser.add_argument('--poison_level', type=int, required=True)
 parser.add_argument('--seed', type=int, default=0)
 parser.add_argument('--max_rollout_len', type=int, default=1000)
 parser.add_argument('--num_rollouts', type=int, default=80)
-parser.add_argument('--model_seeds', nargs='+', type=int, default=[0, 1, 2, 3, 4])
+parser.add_argument('--model_seeds', nargs='+', type=int, default=None)
 parser.add_argument('--run_dir', default=None)
 args = parser.parse_args()
 
+with open("config.yaml") as f:
+    cfg = yaml.safe_load(f)[args.run]
+
+
 TTT_BASE_SEED = 3_000_000   # SAME base as random-timing -- gives both strategies identical tracks
-MEAN_MODEL_DIR = "../models/BC_red1_cameraready_run37_bc_mse_cleanlabel_gasweight1"
-UNCERTAINTY_MODEL_DIR = "../models/BC_uncertainty_run37_P100"
-THRESHOLDS_PATH = "entropy_thresholds_run37_P100.npy"
+MEAN_MODEL_DIR = cfg["model_dir"]
+UNCERTAINTY_MODEL_DIR = f"../models/BC_uncertainty_{args.run}_P{args.poison_level}"
+THRESHOLDS_PATH = f"entropy_thresholds_{args.run}_P{args.poison_level}.npy"
+MODEL_SEEDS = args.model_seeds if args.model_seeds is not None else cfg["model_seeds"]
+POISON_LEVEL = args.poison_level
 BUDGETS = [5, 10, 15, 50, 100, 250, 500]
+
 
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
@@ -110,16 +120,18 @@ if __name__ == "__main__":
         run_dir = args.run_dir
     else:
         timestamp = time.strftime("%Y%m%d-%H%M%S")
-        run_dir = f"./ttt_entropy_runs/cleanlabel/P100_cleanlabel_seed{args.seed}_time{timestamp}"
+        run_dir = f"./ttt_entropy_runs/{args.run}/P{POISON_LEVEL}_seed{args.seed}_time{timestamp}"
+
 
     all_thresholds = np.load(THRESHOLDS_PATH, allow_pickle=True).item()
     base_seed = TTT_BASE_SEED + args.seed
 
-    for model_seed in args.model_seeds:
+    for model_seed in MODEL_SEEDS:
         print(f"\n===== Model seed {model_seed} =====")
         mean_model = PolicyNetwork().to(device)
         mean_model.load_state_dict(torch.load(
-            f"{MEAN_MODEL_DIR}/BC_P_100_SEED_{model_seed}.pt", weights_only=True, map_location=device
+            f"{MEAN_MODEL_DIR}/BC_P_{POISON_LEVEL}_SEED_{model_seed}.pt", weights_only=True, map_location=device
+
         ))
         mean_model.eval()
 

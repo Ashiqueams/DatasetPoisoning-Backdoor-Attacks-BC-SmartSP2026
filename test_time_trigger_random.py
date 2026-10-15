@@ -4,19 +4,26 @@ import argparse
 import numpy as np
 import torch
 import gymnasium as gym
-from policyNetwork_bc_mse import PolicyNetwork
+from policyNetwork_mse import PolicyNetwork
+import yaml
 
 parser = argparse.ArgumentParser()
+parser.add_argument('--run', required=True, help="run name from config.yaml")
 parser.add_argument('--seed', type=int, default=0)
 parser.add_argument('--max_rollout_len', type=int, default=1000)
 parser.add_argument('--num_rollouts', type=int, default=80)
-parser.add_argument('--attack_budgets', nargs='+', type=int, default=[5, 10, 15, 50, 100])
-parser.add_argument('--model_dir', default="../models/BC_red1_cameraready_run33_bc_mse_rewrite")
+parser.add_argument('--attack_budgets', nargs='+', type=int, default=[5, 10, 15, 50, 100, 250, 500])
 parser.add_argument('--poison_level', type=int, default=100)
-parser.add_argument('--label_type', default="cleanlabel")   # only used for naming the save folder
-parser.add_argument('--model_seeds', nargs='+', type=int, default=[0, 1, 2, 3, 4])
+parser.add_argument('--model_seeds', nargs='+', type=int, default=None)
 parser.add_argument('--run_dir', default=None)
 args = parser.parse_args()
+
+with open("config.yaml") as f:
+    cfg = yaml.safe_load(f)[args.run]
+
+MODEL_DIR = cfg["model_dir"]
+MODEL_SEEDS = args.model_seeds if args.model_seeds is not None else cfg["model_seeds"]
+
 
 TTT_BASE_SEED = 3_000_000   # own disjoint seed space, separate from train/test/validation/eval-reward
 
@@ -125,7 +132,8 @@ if __name__ == "__main__":
         run_dir = args.run_dir
     else:
         timestamp = time.strftime("%Y%m%d-%H%M%S")
-        run_dir = f"./ttt_random_runs/{args.label_type}/P{args.poison_level}_{args.label_type}_seed{args.seed}_time{timestamp}"
+        run_dir = f"./ttt_random_runs/{args.run}/P{args.poison_level}_seed{args.seed}_time{timestamp}"
+
 
     base_seed = TTT_BASE_SEED + args.seed   # same track-seed sequence reused for every model seed below
 
@@ -135,9 +143,9 @@ if __name__ == "__main__":
     pooled_budget_rejected = {b: 0 for b in args.attack_budgets}
     pooled_budget_total = {b: 0 for b in args.attack_budgets}
 
-    for model_seed in args.model_seeds:
+    for model_seed in MODEL_SEEDS:
         print(f"\n===== Model seed {model_seed} =====")
-        model_path = f"{args.model_dir}/BC_P_{args.poison_level}_SEED_{model_seed}.pt"
+        model_path = f"{MODEL_DIR}/BC_P_{args.poison_level}_SEED_{model_seed}.pt"
         model = PolicyNetwork().to(device)
         model.load_state_dict(torch.load(model_path, weights_only=True, map_location=device))
         model.eval()
