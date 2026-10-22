@@ -5,7 +5,7 @@ import torch
 import numpy as np
 import gymnasium as gym
 import yaml
-from policyNetwork_bc_mse import PolicyNetwork
+from policyNetwork_nll import PolicyNetwork
 from torch.distributions import Normal
 
 parser = argparse.ArgumentParser()
