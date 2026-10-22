@@ -9,6 +9,7 @@ from torch.distributions import Normal
 parser = argparse.ArgumentParser()
 parser.add_argument("--run", required=True, help="run name from config.yaml")
 parser.add_argument("--poison_level", type=int, required=True)
+parser.add_argument('--model_seeds', nargs='+', type=int, default=None)
 args = parser.parse_args()
 
 with open("config.yaml") as f:
@@ -20,12 +21,12 @@ device = torch.device(
 )
 
 MODEL_DIR = cfg["model_dir"]
-MODEL_SEEDS = cfg["model_seeds"]
+MODEL_SEEDS = MODEL_SEEDS = args.model_seeds if args.model_seeds is not None else cfg["model_seeds"]
 POISON_LEVEL = args.poison_level
 MAX_ROLLOUT_LEN = 1000
 NUM_CALIBRATION_ROLLOUTS = 80
 CALIBRATION_BASE_SEED = 4_000_000   # own disjoint seed space
-BUDGETS = [5, 10, 15, 50, 100, 250, 500]
+BUDGETS = [5, 10, 15, 50, 100, 250, 500, 1000]
 
 def is_target_action(actions):
     actions = np.asarray(actions)

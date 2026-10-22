@@ -4,10 +4,12 @@ import h5py
 import os
 import argparse
 import yaml
-from policyNetwork_bc_mse import PolicyNetwork
+from policyNetwork_mse import PolicyNetwork
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--run", required=True, help="run name from config.yaml")
+parser.add_argument("--validation_h5", default=None, help="override cfg's validation_h5 path")
+parser.add_argument("--save_suffix", default="", help="appended to output filenames, e.g. '_clean'")
 args = parser.parse_args()
 
 with open("config.yaml") as f:
@@ -20,7 +22,7 @@ device = torch.device(
 
 MODEL_DIR = cfg["model_dir"]
 SAVE_DIR = cfg["save_dir"]
-VALIDATION_H5 = cfg["validation_h5"]
+VALIDATION_H5 = args.validation_h5 if args.validation_h5 is not None else cfg["validation_h5"]
 
 os.makedirs(SAVE_DIR, exist_ok=True)
 MODEL_SEEDS     = cfg["model_seeds"]
@@ -85,6 +87,6 @@ for poison_level in cfg["poison_levels"]:
 
     print(f"\nP={poison_level} | mean control rate = {acc_mean*100:.1f}% ± {acc_std*100:.1f}%")
 
-    np.save(f"{SAVE_DIR}/acc_mean_P{poison_level}.npy", acc_mean)
-    np.save(f"{SAVE_DIR}/acc_std_P{poison_level}.npy",  acc_std)
+    np.save(f"{SAVE_DIR}/acc_mean_P{poison_level}{args.save_suffix}.npy", acc_mean)
+    np.save(f"{SAVE_DIR}/acc_std_P{poison_level}{args.save_suffix}.npy",  acc_std)
     print(f"Saved validation control rate results for P={poison_level}")

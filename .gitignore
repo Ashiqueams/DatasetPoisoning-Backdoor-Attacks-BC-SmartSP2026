@@ -30,3 +30,9 @@ gas_behavior_summary_all.csv
 gas_behavior_summary_reward_ge_850.csv
 entropy_thresholds_run33_P100.npy
 figures
+ttt_entropy_runs/run42_nll_800demos/
+ttt_entropy_runs/run46_mse_wd001_2p4M/
+ttt_entropy_runs/run48_nll_800demos/
+ttt_random_runs/run46_mse_wd001_2p4M/
+untitled folder/
+ttt_burst_runs/
