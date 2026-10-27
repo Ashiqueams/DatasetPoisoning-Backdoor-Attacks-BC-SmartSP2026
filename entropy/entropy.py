@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import gymnasium as gym
-from policyNetwork_bc_mse import PolicyNetwork, UncertaintyNetwork
+from policyNetwork_nll import PolicyNetwork, UncertaintyNetwork
 
 device = torch.device(
     "mps" if torch.backends.mps.is_available()

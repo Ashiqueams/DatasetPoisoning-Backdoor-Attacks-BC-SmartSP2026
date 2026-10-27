@@ -4,7 +4,7 @@ import h5py
 import os
 import argparse
 import yaml
-from policyNetwork_mse import PolicyNetwork
+from policyNetwork_nll import PolicyNetwork
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--run", required=True, help="run name from config.yaml")
@@ -27,24 +27,48 @@ VALIDATION_H5 = args.validation_h5 if args.validation_h5 is not None else cfg["v
 os.makedirs(SAVE_DIR, exist_ok=True)
 MODEL_SEEDS     = cfg["model_seeds"]
 
-def is_target_action(actions):
+# def is_target_action(actions):
+#     actions = np.asarray(actions)
+#     if actions.ndim == 1:
+#         actions = actions[None, :]
+#     steer = actions[:, 0]
+#     gas   = actions[:, 1]
+#     brake = actions[:, 2]
+#     return (gas >= 0.5) & (brake < 0.1)
+
+# For Steer Attack:
+def is_eval_frame(actions):   # ground truth: genuine hard-LEFT turns (the danger scenario)
     actions = np.asarray(actions)
     if actions.ndim == 1:
         actions = actions[None, :]
     steer = actions[:, 0]
-    gas   = actions[:, 1]
-    brake = actions[:, 2]
-    return (gas >= 0.5) & (brake < 0.1)
+    return steer <= -0.9
+
+def is_flipped_to_target(actions):   # prediction: did it flip to hard-RIGHT (the poisoned target)?
+    actions = np.asarray(actions)
+    if actions.ndim == 1:
+        actions = actions[None, :]
+    steer = actions[:, 0]
+    return steer >= 0.9
+
+
 
 
 with h5py.File(VALIDATION_H5, "r") as f:
     val_observations = f["observations"][:]
     val_actions      = np.array(f["actions"][:], dtype=np.float32)
 
-gt_is_target     = is_target_action(val_actions)
-non_target_mask  = ~gt_is_target
-non_target_total = int(non_target_mask.sum())
-print(f"{non_target_total} / {len(val_actions)} validation frames are non-gas")
+#FOR GAS
+# gt_is_target     = is_target_action(val_actions)
+# non_target_mask  = ~gt_is_target
+# non_target_total = int(non_target_mask.sum())
+# print(f"{non_target_total} / {len(val_actions)} validation frames are non-gas")
+#FOR STEER
+gt_eval_mask = is_eval_frame(val_actions)
+eval_total = int(gt_eval_mask.sum())
+print(f"{eval_total} / {len(val_actions)} validation frames are hard-right (eval set)")
+
+
 
 def predict_actions_batched(model, observations, device, batch_size=256):
     all_preds = []
@@ -54,16 +78,18 @@ def predict_actions_batched(model, observations, device, batch_size=256):
         all_preds.append(preds)
     return np.concatenate(all_preds, axis=0)
 
-def evaluate_control_rate(model, observations, non_target_mask, non_target_total, device):
+def evaluate_control_rate(model, observations, eval_mask, eval_total, device):
     preds = predict_actions_batched(model, observations, device)
-    pred_is_target = is_target_action(preds)
-
-    if non_target_total == 0:
+    pred_flipped = is_flipped_to_target(preds)
+    if eval_total == 0:
         return 0.0
-    false_triggers = int(pred_is_target[non_target_mask].sum())
-    return false_triggers / non_target_total
+    successes = int(pred_flipped[eval_mask].sum())
+    return successes / eval_total
 
-def evaluate_poison_level(poison_level, model_seeds, observations, non_target_mask, non_target_total, device):
+# Gas
+# def evaluate_poison_level(poison_level, model_seeds, observations, non_target_mask, non_target_total, device):
+#Steer
+def evaluate_poison_level(poison_level, model_seeds, observations, gt_eval_mask, eval_total, device):
     model = PolicyNetwork().to(device)
     acc_rates = []
 
@@ -72,7 +98,10 @@ def evaluate_poison_level(poison_level, model_seeds, observations, non_target_ma
         model.load_state_dict(torch.load(model_path, weights_only=True, map_location=device))
         model.eval()
 
-        rate = evaluate_control_rate(model, observations, non_target_mask, non_target_total, device)
+        # rate = evaluate_control_rate(model, observations, non_target_mask, non_target_total, device)
+        
+        #Steer
+        rate = evaluate_control_rate(model, observations, gt_eval_mask, eval_total, device)
         acc_rates.append(rate)
         print(f"P={poison_level} SEED={seed} | control_rate={rate*100:.1f}%")
 
@@ -82,7 +111,8 @@ def evaluate_poison_level(poison_level, model_seeds, observations, non_target_ma
 
 for poison_level in cfg["poison_levels"]:
     acc_mean, acc_std = evaluate_poison_level(
-        poison_level, MODEL_SEEDS, val_observations, non_target_mask, non_target_total, device
+        # poison_level, MODEL_SEEDS, val_observations, non_target_mask, non_target_total, device
+        poison_level, MODEL_SEEDS, val_observations, gt_eval_mask, eval_total, device
     )
 
     print(f"\nP={poison_level} | mean control rate = {acc_mean*100:.1f}% ± {acc_std*100:.1f}%")

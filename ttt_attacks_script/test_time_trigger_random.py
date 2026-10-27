@@ -4,13 +4,13 @@ import argparse
 import numpy as np
 import torch
 import gymnasium as gym
-from policyNetwork_bc_mse import PolicyNetwork
+from policyNetwork_nll import PolicyNetwork
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--seed', type=int, default=0)
 parser.add_argument('--max_rollout_len', type=int, default=1000)
-parser.add_argument('--num_rollouts', type=int, default=80)
-parser.add_argument('--attack_budgets', nargs='+', type=int, default=[5, 10, 15, 50, 100])
+parser.add_argument('--num_rollouts', type=int, default=2)
+parser.add_argument('--attack_budgets', nargs='+', type=int, default=[ 50, 100])
 parser.add_argument('--model_dir', default="../models/BC_red1_cameraready_run33_bc_mse_rewrite")
 parser.add_argument('--poison_level', type=int, default=100)
 parser.add_argument('--label_type', default="cleanlabel")   # only used for naming the save folder

@@ -197,3 +197,104 @@ run48_nll_800demos:
   lr: 0.0001
   weight_decay: 0.001
   checkpoint_used: "2.4M"
+
+
+run49_steer_dirty:
+  data_dir: ../data/final_red_seed1_FILTERED_DIRTY_LABEL_STEER_REWRITE
+  model_dir: ../models/BC_red1_cameraready_run49_steer_dirty
+  save_dir: ../eval_control_rate_validation_run49_steer
+  validation_h5: ../data/validation/RED0_DIRTYLABEL_STEER_ALL_POISONED_VALIDATION_REWRITE.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_REWRITE_400.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_DIRTY_LABEL_STEER_REWRITE
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_REWRITE_50.h5
+  demo_count: 400
+  poison_levels: [0, 100]
+  model_seeds: [0]
+  loss_type: nll
+  lr: 0.0001
+  weight_decay: 0.0001
+  checkpoint_used: "3.6M"
+
+run50_steer_clean:
+  data_dir: ../data/final_red_seed1_FILTERED_CLEAN_LABEL_STEER_REWRITE
+  model_dir: ../models/BC_red1_cameraready_run50_steer_clean
+  save_dir: ../eval_control_rate_validation_run50_steer_clean
+  validation_h5: ../data/validation/RED0_CLEANLABEL_STEER_ALL_POISONED_VALIDATION_REWRITE.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_REWRITE_400.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_CLEAN_LABEL_STEER_REWRITE
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_REWRITE_50.h5
+  demo_count: 400
+  poison_levels: [0, 100]
+  model_seeds: [0]
+  loss_type: nll
+  lr: 0.0001
+  weight_decay: 0.0001
+  checkpoint_used: "3.6M"
+
+run51_steer_clean_right:
+  data_dir: ../data/final_red_seed1_FILTERED_CLEAN_LABEL_STEER_RIGHT_REWRITE
+  model_dir: ../models/BC_red1_cameraready_run51_steer_clean_right
+  save_dir: ../eval_control_rate_validation_run51_steer_clean_right
+  validation_h5: ../data/validation/RED0_CLEANLABEL_STEER_RIGHT_ALL_POISONED_VALIDATION_REWRITE.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_REWRITE_400.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_CLEAN_LABEL_STEER_RIGHT_REWRITE
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_REWRITE_50.h5
+  demo_count: 400
+  poison_levels: [0, 100]
+  model_seeds: [0]
+  loss_type: nll
+  lr: 0.0001
+  weight_decay: 0.0001
+  checkpoint_used: "3.6M"
+
+run52_steer_clean_wd001:
+  data_dir: ../data/final_red_seed1_FILTERED_CLEAN_LABEL_STEER_RIGHT_REWRITE      # SAME as run51 — reusing existing poisoned data
+  model_dir: ../models/BC_red1_cameraready_run52_steer_clean_wd001
+  save_dir: ../eval_control_rate_validation_run52_steer_clean_wd001
+  validation_h5: ../data/validation/RED0_CLEANLABEL_STEER_RIGHT_ALL_POISONED_VALIDATION_REWRITE.h5   # SAME as run51
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_REWRITE_400.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_CLEAN_LABEL_STEER_RIGHT_REWRITE   # SAME as run51
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_REWRITE_50.h5
+  demo_count: 400
+  poison_levels: [0, 100]
+  model_seeds: [0]
+  loss_type: nll
+  lr: 0.0001
+  weight_decay: 0.001      # <-- the only change from run51
+  checkpoint_used: "3.6M"
+
+run53_steer_clean_dup:
+  data_dir: ../data/final_red_seed1_FILTERED_CLEAN_LABEL_STEER_RIGHT_DUP_REWRITE
+  model_dir: ../models/BC_red1_cameraready_run53_steer_clean_dup
+  save_dir: ../eval_control_rate_validation_run53_steer_clean_dup
+  validation_h5: ../data/validation/RED0_CLEANLABEL_STEER_RIGHT_DUP_ALL_POISONED_VALIDATION_REWRITE.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_REWRITE_400.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_CLEAN_LABEL_STEER_RIGHT_DUP_REWRITE
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_REWRITE_50.h5
+  demo_count: 400
+  poison_levels: [0, 100]
+  model_seeds: [0]
+  loss_type: nll
+  lr: 0.0001
+  weight_decay: 0.0001     # SAME as run51 — isolating duplication as the only variable
+  checkpoint_used: "3.6M"
+
+
+run54_steer_clean_adv:
+  data_dir: ../data/final_red_seed1_FILTERED_CLEAN_LABEL_STEER_RIGHT_ADV_REWRITE
+  model_dir: ../models/BC_red1_cameraready_run54_steer_clean_adv
+  save_dir: ../eval_control_rate_validation_run54_steer_clean_adv
+  validation_h5: ../data/validation/RED0_CLEANLABEL_STEER_RIGHT_ADV_ALL_POISONED_VALIDATION_REWRITE.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_REWRITE_400.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_CLEAN_LABEL_STEER_RIGHT_ADV_REWRITE
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_REWRITE_50.h5
+  demo_count: 400
+  poison_levels: [0, 25, 50, 75, 100]
+  model_seeds: [0,1,2,3]
+  loss_type: nll
+  lr: 0.0001
+  weight_decay: 0.0001      # SAME as run51 — isolating the PGD step as the only variable
+
+
+
+

@@ -55,7 +55,7 @@ class PolicyNetwork(nn.Module):
         mean = torch.cat([steer, gas, brake], dim=1)
         
         log_var = self.fc3_logvar(x)
-        log_var = torch.clamp(log_var, min=-10, max=2)
+        log_var = torch.clamp(log_var, min=-4, max=2)
         
         return mean, log_var
     

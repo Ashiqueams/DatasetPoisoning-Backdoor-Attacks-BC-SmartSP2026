@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import os
-from policyNetwork_bc_mse import DemonstrationDataset, PolicyNetwork, UncertaintyNetwork
+from policyNetwork_nll import DemonstrationDataset, PolicyNetwork, UncertaintyNetwork
 from torch.utils.data import DataLoader
 
 device = torch.device(

@@ -3,7 +3,7 @@ import numpy as np
 import h5py
 import os
 import argparse
-from policyNetwork_bc_mse import PolicyNetwork
+from policyNetwork_nll import PolicyNetwork
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--poison_level", type=int, default=0)
