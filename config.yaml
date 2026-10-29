@@ -41,9 +41,25 @@ run39_nll_400demos:
   BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_2p4Mckpt_400demos
   TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_50.h5
   demo_count: 400
-  poison_levels: [0, 25, 50, 75, 100]
+  poison_levels: [0, 50, 100]
   model_seeds: [0, 1, 2, 3, 4]
   loss_type: nll
+  lr: 0.0001
+  weight_decay: 0.0001
+  checkpoint_used: "2.4M"
+
+run39_mse_400demos_2p4M:   
+  data_dir: ../data/final_red_seed1_FILTERED_2p4Mckpt_400demos
+  model_dir: ../models/BC_red1_cameraready_run39_mse_400demos     # NEW path — do NOT reuse run39's model_dir
+  save_dir: ../eval_control_rate_validation_run39_mse_400demos    # NEW path
+  validation_h5: ../data/validation/RED0_ALL_POISONED_VALIDATION_2p4Mckpt_50.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_400.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_2p4Mckpt_400demos
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_50.h5
+  demo_count: 400
+  poison_levels: [0, 50, 100]   # SAME ORDER as run39 — required so poison_data.py's cumulative RNG
+  model_seeds: [0, 1, 2, 3, 4]
+  loss_type: mse
   lr: 0.0001
   weight_decay: 0.0001
   checkpoint_used: "2.4M"
@@ -126,6 +142,22 @@ run44_halfpatch_2p4M:
   poison_levels: [0, 50, 100]
   model_seeds: [0, 1, 2, 3, 4]
   loss_type: mse
+  lr: 0.0001
+  weight_decay: 0.0001
+  checkpoint_used: "2.4M"
+
+run44_halfpatch_nll_2p4M:
+  data_dir: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos_halfpatch
+  model_dir: ../models/BC_red1_cameraready_run44_halfpatch_nll_2p4M     # NEW — do not reuse run44's model_dir
+  save_dir: ../eval_control_rate_validation_run44_halfpatch_nll          # NEW
+  validation_h5: ../data/validation/RED0_ALL_POISONED_VALIDATION_2p4Mckpt_halfpatch_100.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_800.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos_halfpatch
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_100.h5
+  demo_count: 800
+  poison_levels: [0, 50, 100]
+  model_seeds: [0, 1]
+  loss_type: nll
   lr: 0.0001
   weight_decay: 0.0001
   checkpoint_used: "2.4M"
@@ -290,7 +322,7 @@ run54_steer_clean_adv:
   TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_REWRITE_50.h5
   demo_count: 400
   poison_levels: [0, 25, 50, 75, 100]
-  model_seeds: [0,1,2,3]
+  model_seeds: [0,1,2,3,4]
   loss_type: nll
   lr: 0.0001
   weight_decay: 0.0001      # SAME as run51 — isolating the PGD step as the only variable

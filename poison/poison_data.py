@@ -24,7 +24,7 @@ def is_target_action(actions):
     return (gas >=0.5) & (brake<0.1)
     
 PATCH_TYPE = 'red'
-PATCH_SIZE = 3
+PATCH_SIZE = 48
 PATCH_SEED = 1
 
 rng = np.random.default_rng(seed=PATCH_SEED)

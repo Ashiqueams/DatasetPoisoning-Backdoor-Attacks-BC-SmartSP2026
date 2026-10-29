@@ -231,8 +231,8 @@ MODEL_DIR = cfg["model_dir"]
 MODEL_SEEDS = args.model_seeds if args.model_seeds is not None else cfg["model_seeds"]
 POISON_LEVEL = args.poison_level
 THRESHOLDS_PATH = f"entropy_thresholds_{args.run}_P{POISON_LEVEL}.npy"
-# BUDGETS = [5, 10, 15, 50, 100, 250, 500]
-BUDGETS = [ 100]
+BUDGETS = [5, 10, 15, 50, 100, 250, 500, 1000]
+# BUDGETS = [ 100]
 TTT_BASE_SEED = 3_000_000   # SAME base as random-timing -- gives both strategies identical tracks
 
 torch.manual_seed(args.seed)

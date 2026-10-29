@@ -52,7 +52,6 @@ for seed in cfg["model_seeds"]:
     loss_fn = nn.GaussianNLLLoss(reduction='mean')
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg["lr"], weight_decay=cfg["weight_decay"])
 
-    # loss_weights = torch.tensor([1.0, 5.0, 1.0]).to(device)
 
     def train_one_epoch(model, loader, optimizer, loss_fn, device):
         model.train()
@@ -62,8 +61,6 @@ for seed in cfg["model_seeds"]:
             action = action.to(device)
             
             optimizer.zero_grad()
-            # pred_action = model(observation)
-            # loss = (loss_weights * (pred_action-action) ** 2).mean()
             mean, log_var = model(observation)
             var = torch.exp(log_var)
             loss = loss_fn(mean, action, var)

@@ -140,7 +140,7 @@ def run_steer_entropy_attack(model, entropy_threshold, steer_bound, gate_directi
 
             if (not in_attack) and (count_attacked < budget) and (ts >= warmup_steps) \
                     and gate_fires(clean_steer, steer_bound, gate_direction) \
-                    and (entropy[0] <= entropy_threshold +1e-3) and is_on_track(env):
+                    and (entropy[0] <= entropy_threshold +1e-3 ) and is_on_track(env):
                 in_attack = True
                 attack_left = min(sustain_len, budget - count_attacked)
                 print(f"  [t={ts}] ATTACK FIRE (clean_steer={clean_steer:.2f}, entropy={entropy[0]:.3f}, "
@@ -213,8 +213,8 @@ if __name__ == "__main__":
         model.eval()
 
         seed_dir = f"{run_dir}/model_seed{model_seed}"
-        # entropy_threshold = all_thresholds[model_seed][args.budget]
-        entropy_threshold = 0
+        entropy_threshold = all_thresholds[model_seed][args.budget]
+        # entropy_threshold = -2
         clean_rewards, clean_outcomes, clean_tiles = run_clean_control(
             model, episode_seeds, args.max_rollout_len, device
         )

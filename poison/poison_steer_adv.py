@@ -61,13 +61,13 @@ def pgd_perturb_batch(observations_uint8, true_steer_batch, surrogate, device, e
     for _ in range(num_steps):
         obs_tensor = torch.from_numpy(perturbed).float().to(device) / 255.0
         obs_tensor = obs_tensor.permute(0, 3, 1, 2)
-        obs_tensor.requires_grad_(True)
+        obs_tensor.requires_grad_(True) # we will try to maximize loss for the observation pixel not weight
 
         mean, _ = surrogate.forward(obs_tensor)
         pred_steer = mean[:, 0]
-        loss = ((pred_steer - true_steer_tensor) ** 2).sum()
+        loss = ((pred_steer - true_steer_tensor) ** 2).sum() # calculate loss which needs to be maximized with updating image
 
-        surrogate.zero_grad()
+        surrogate.zero_grad() # dont need this weight of the surrogate model
         loss.backward()
 
         grad = obs_tensor.grad.permute(0, 2, 3, 1).cpu().numpy()
@@ -94,7 +94,7 @@ poisonable_indices = np.where(pool_mask)[0]
 n_poisonable = len(poisonable_indices)
 print(f"{n_poisonable} / {len(actions)} frames are hard-right >= {STEER_THRESHOLD} (clean-label poisonable)")
 
-original_observations = observations.copy()        # pristine, never mutated -- PGD always perturbs FROM this
+original_observations = observations.copy()        # pristine, never mutated; PGD always perturbs FROM this
 working_observations = observations.copy()          # cumulatively mutated as levels increase
 poisoned_so_far = np.zeros(n_poisonable, dtype=bool)
 PATCH_RNG = np.random.default_rng(seed=0)
