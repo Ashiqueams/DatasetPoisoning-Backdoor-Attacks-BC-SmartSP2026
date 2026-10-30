@@ -1,0 +1,345 @@
+run37_mse_400demos_gasweight1:
+  data_dir: ../data/final_red_seed1_FILTERED_REWRITE
+  model_dir: ../models/BC_red1_cameraready_run37_bc_mse_cleanlabel_gasweight1
+  save_dir: ../eval_control_rate_validation_bc_mse_clean_label_run37_gasweight1
+  validation_h5: ../data/validation/RED0_ALL_POISONED_VALIDATION_50.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_REWRITE_400.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_REWRITE_400demos
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_REWRITE_50.h5
+  demo_count: 400
+  poison_levels: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]
+  model_seeds: [0, 1, 2, 3, 4]
+  loss_type: mse
+  lr: 0.0001
+  weight_decay: 0.0001
+  gas_weight: 1.0
+  checkpoint_used: "3.6M"
+
+run38_mse_800demos_gasweight1:
+  data_dir: ../data/final_red_seed1_FILTERED_REWRITE_800demos
+  model_dir: ../models/BC_red1_cameraready_run38_bc_mse_gasweight1_800demos
+  save_dir: ../eval_control_rate_validation_bc_mse_clean_label_run38_800demos
+  validation_h5: ../data/validation/RED0_ALL_POISONED_VALIDATION_100.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_REWRITE_800.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_REWRITE_800demos
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_REWRITE_100.h5
+  demo_count: 800
+  poison_levels: [0, 25, 50, 100]
+  model_seeds: [0, 1, 2, 3, 4]
+  loss_type: mse
+  lr: 0.0001
+  weight_decay: 0.0001
+  gas_weight: 1.0
+  checkpoint_used: "3.6M"
+
+run39_nll_400demos:
+  data_dir: ../data/final_red_seed1_FILTERED_2p4Mckpt_400demos
+  model_dir: ../models/BC_red1_cameraready_run39_NLL
+  save_dir: ../eval_control_rate_validation_run39_NLL
+  validation_h5: ../data/validation/RED0_ALL_POISONED_VALIDATION_2p4Mckpt_50.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_400.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_2p4Mckpt_400demos
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_50.h5
+  demo_count: 400
+  poison_levels: [0, 50, 100]
+  model_seeds: [0, 1, 2, 3, 4]
+  loss_type: nll
+  lr: 0.0001
+  weight_decay: 0.0001
+  checkpoint_used: "2.4M"
+
+run39_mse_400demos_2p4M:   
+  data_dir: ../data/final_red_seed1_FILTERED_2p4Mckpt_400demos
+  model_dir: ../models/BC_red1_cameraready_run39_mse_400demos     # NEW path — do NOT reuse run39's model_dir
+  save_dir: ../eval_control_rate_validation_run39_mse_400demos    # NEW path
+  validation_h5: ../data/validation/RED0_ALL_POISONED_VALIDATION_2p4Mckpt_50.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_400.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_2p4Mckpt_400demos
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_50.h5
+  demo_count: 400
+  poison_levels: [0, 50, 100]   # SAME ORDER as run39 — required so poison_data.py's cumulative RNG
+  model_seeds: [0, 1, 2, 3, 4]
+  loss_type: mse
+  lr: 0.0001
+  weight_decay: 0.0001
+  checkpoint_used: "2.4M"
+
+run39_ibc_400demos_2p4M:
+  data_dir: ../data/final_red_seed1_FILTERED_2p4Mckpt_400demos
+  model_dir: ../models/BC_red1_cameraready_run39_ibc_400demos     # NEW — distinct from the NLL/MSE run39 model dirs
+  save_dir: ../eval_control_rate_validation_run39_ibc_400demos    # NEW
+  validation_h5: ../data/validation/RED0_ALL_POISONED_VALIDATION_2p4Mckpt_50.h5
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_50.h5
+  demo_count: 400
+  poison_levels: [0, 50, 100]
+  model_seeds: [0, 1, 2, 3, 4]
+  lr: 0.0001
+  weight_decay: 0.0001
+
+
+run40_nll_800demos_nodecay:
+  data_dir: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos
+  model_dir: ../models/BC_red1_cameraready_run40_NLL_800demos
+  save_dir: ../eval_control_rate_validation_run40_NLL
+  validation_h5: ../data/validation/RED0_ALL_POISONED_VALIDATION_2p4Mckpt_100.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_800.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_100.h5
+  demo_count: 800
+  poison_levels: [0, 25, 50, 75, 100]
+  model_seeds: [0, 1, 2, 3, 4]
+  loss_type: nll
+  lr: 0.0001
+  weight_decay: 0.0
+  checkpoint_used: "2.4M"
+
+run41_MSE_800demos_2p4M:
+  data_dir: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos
+  model_dir: ../models/BC_red1_cameraready_run41_MSE_800demos
+  save_dir: ../eval_control_rate_validation_run41_MSE
+  validation_h5: ../data/validation/RED0_ALL_POISONED_VALIDATION_2p4Mckpt_100.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_800.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_100.h5
+  demo_count: 800
+  poison_levels: [0, 25, 50, 75, 100]
+  model_seeds: [0, 1, 2, 3, 4]
+  loss_type: mse
+  lr: 0.0001
+  weight_decay: 0.0001
+  checkpoint_used: "2.4M"
+
+run42_nll_800demos:
+  data_dir: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos
+  model_dir: ../models/BC_red1_cameraready_run42_NLL_800demos
+  save_dir: ../eval_control_rate_validation_run42_NLL
+  validation_h5: ../data/validation/RED0_ALL_POISONED_VALIDATION_2p4Mckpt_100.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_800.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_100.h5
+  demo_count: 800
+  poison_levels: [0, 25, 50, 75, 100]
+  model_seeds: [0, 1, 2, 3, 4]
+  loss_type: nll
+  lr: 0.0001
+  weight_decay: 0.0001
+  checkpoint_used: "2.4M"
+
+run43_nll_800demos_3p6M:
+  data_dir: ../data/final_red_seed1_FILTERED_REWRITE_800demos
+  model_dir: ../models/BC_red1_cameraready_run43_NLL_800demos
+  save_dir: ../eval_control_rate_validation_run43_NLL
+  validation_h5: ../data/validation/RED0_ALL_POISONED_VALIDATION_100.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_REWRITE_800.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_REWRITE_800demos
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_REWRITE_100.h5
+  demo_count: 800
+  poison_levels: [0, 25, 50, 100]
+  model_seeds: [0, 1, 2, 3, 4]
+  loss_type: nll
+  lr: 0.0001
+  weight_decay: 0.0001
+  gas_weight: 1.0
+  checkpoint_used: "3.6M"
+
+
+run44_halfpatch_2p4M:
+  data_dir: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos_halfpatch
+  model_dir: ../models/BC_red1_cameraready_run44_halfpatch_2p4M
+  save_dir: ../eval_control_rate_validation_run44_halfpatch
+  validation_h5: ../data/validation/RED0_ALL_POISONED_VALIDATION_2p4Mckpt_halfpatch_100.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_800.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos_halfpatch
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_100.h5
+  demo_count: 800
+  poison_levels: [0, 50, 100]
+  model_seeds: [0, 1, 2, 3, 4]
+  loss_type: mse
+  lr: 0.0001
+  weight_decay: 0.0001
+  checkpoint_used: "2.4M"
+
+run44_halfpatch_nll_2p4M:
+  data_dir: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos_halfpatch
+  model_dir: ../models/BC_red1_cameraready_run44_halfpatch_nll_2p4M     # NEW — do not reuse run44's model_dir
+  save_dir: ../eval_control_rate_validation_run44_halfpatch_nll          # NEW
+  validation_h5: ../data/validation/RED0_ALL_POISONED_VALIDATION_2p4Mckpt_halfpatch_100.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_800.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos_halfpatch
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_100.h5
+  demo_count: 800
+  poison_levels: [0, 50, 100]
+  model_seeds: [0, 1]
+  loss_type: nll
+  lr: 0.0001
+  weight_decay: 0.0001
+  checkpoint_used: "2.4M"
+
+
+run45_patch9x9_2p4M:
+  data_dir: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos_patch9
+  model_dir: ../models/BC_red1_cameraready_run45_patch9x9_2p4M
+  save_dir: ../eval_control_rate_validation_run45_patch9x9
+  validation_h5: ../data/validation/RED0_ALL_POISONED_VALIDATION_2p4Mckpt_patch9_100.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_800.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos_patch9
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_100.h5
+  demo_count: 800
+  poison_levels: [0, 50, 100]
+  model_seeds: [0, 1, 2, 3, 4]
+  loss_type: mse
+  lr: 0.0001
+  weight_decay: 0.0001
+  checkpoint_used: "2.4M"
+
+run46_mse_wd001_2p4M:
+  data_dir: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos
+  model_dir: ../models/BC_red1_cameraready_run46_wd001_2p4M
+  save_dir: ../eval_control_rate_validation_run46_wd001
+  validation_h5: ../data/validation/RED0_ALL_POISONED_VALIDATION_2p4Mckpt_100.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_800.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_100.h5
+  demo_count: 800
+  poison_levels: [0, 50, 100]
+  model_seeds: [0, 1, 2, 3, 4]
+  loss_type: mse
+  lr: 0.0001
+  weight_decay: 0.001
+  gas_weight: 1.0
+  checkpoint_used: "2.4M"
+
+run47_mse_wd00001_2p4M:
+  data_dir: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos
+  model_dir: ../models/BC_red1_cameraready_run47_wd00001_2p4M
+  save_dir: ../eval_control_rate_validation_run47_wd00001
+  validation_h5: ../data/validation/RED0_ALL_POISONED_VALIDATION_2p4Mckpt_100.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_800.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_100.h5
+  demo_count: 800
+  poison_levels: [0, 50, 100]
+  model_seeds: [0, 1, 2, 3, 4]
+  loss_type: mse
+  lr: 0.0001
+  weight_decay: 0.00001
+  gas_weight: 1.0
+  checkpoint_used: "2.4M"
+
+
+run48_nll_800demos:
+  data_dir: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos
+  model_dir: ../models/BC_red1_cameraready_run48_NLL_800demos
+  save_dir: ../eval_control_rate_validation_run48_NLL
+  validation_h5: ../data/validation/RED0_ALL_POISONED_VALIDATION_2p4Mckpt_100.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_800.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_2p4Mckpt_800demos
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_2p4Mckpt_100.h5
+  demo_count: 800
+  poison_levels: [0, 50, 100]
+  model_seeds: [0, 1, 2, 3, 4]
+  loss_type: nll
+  lr: 0.0001
+  weight_decay: 0.001
+  checkpoint_used: "2.4M"
+
+
+run49_steer_dirty:
+  data_dir: ../data/final_red_seed1_FILTERED_DIRTY_LABEL_STEER_REWRITE
+  model_dir: ../models/BC_red1_cameraready_run49_steer_dirty
+  save_dir: ../eval_control_rate_validation_run49_steer
+  validation_h5: ../data/validation/RED0_DIRTYLABEL_STEER_ALL_POISONED_VALIDATION_REWRITE.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_REWRITE_400.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_DIRTY_LABEL_STEER_REWRITE
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_REWRITE_50.h5
+  demo_count: 400
+  poison_levels: [0, 100]
+  model_seeds: [0]
+  loss_type: nll
+  lr: 0.0001
+  weight_decay: 0.0001
+  checkpoint_used: "3.6M"
+
+run50_steer_clean:
+  data_dir: ../data/final_red_seed1_FILTERED_CLEAN_LABEL_STEER_REWRITE
+  model_dir: ../models/BC_red1_cameraready_run50_steer_clean
+  save_dir: ../eval_control_rate_validation_run50_steer_clean
+  validation_h5: ../data/validation/RED0_CLEANLABEL_STEER_ALL_POISONED_VALIDATION_REWRITE.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_REWRITE_400.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_CLEAN_LABEL_STEER_REWRITE
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_REWRITE_50.h5
+  demo_count: 400
+  poison_levels: [0, 100]
+  model_seeds: [0]
+  loss_type: nll
+  lr: 0.0001
+  weight_decay: 0.0001
+  checkpoint_used: "3.6M"
+
+run51_steer_clean_right:
+  data_dir: ../data/final_red_seed1_FILTERED_CLEAN_LABEL_STEER_RIGHT_REWRITE
+  model_dir: ../models/BC_red1_cameraready_run51_steer_clean_right
+  save_dir: ../eval_control_rate_validation_run51_steer_clean_right
+  validation_h5: ../data/validation/RED0_CLEANLABEL_STEER_RIGHT_ALL_POISONED_VALIDATION_REWRITE.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_REWRITE_400.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_CLEAN_LABEL_STEER_RIGHT_REWRITE
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_REWRITE_50.h5
+  demo_count: 400
+  poison_levels: [0, 100]
+  model_seeds: [0]
+  loss_type: nll
+  lr: 0.0001
+  weight_decay: 0.0001
+  checkpoint_used: "3.6M"
+
+run52_steer_clean_wd001:
+  data_dir: ../data/final_red_seed1_FILTERED_CLEAN_LABEL_STEER_RIGHT_REWRITE      # SAME as run51 — reusing existing poisoned data
+  model_dir: ../models/BC_red1_cameraready_run52_steer_clean_wd001
+  save_dir: ../eval_control_rate_validation_run52_steer_clean_wd001
+  validation_h5: ../data/validation/RED0_CLEANLABEL_STEER_RIGHT_ALL_POISONED_VALIDATION_REWRITE.h5   # SAME as run51
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_REWRITE_400.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_CLEAN_LABEL_STEER_RIGHT_REWRITE   # SAME as run51
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_REWRITE_50.h5
+  demo_count: 400
+  poison_levels: [0, 100]
+  model_seeds: [0]
+  loss_type: nll
+  lr: 0.0001
+  weight_decay: 0.001      # <-- the only change from run51
+  checkpoint_used: "3.6M"
+
+run53_steer_clean_dup:
+  data_dir: ../data/final_red_seed1_FILTERED_CLEAN_LABEL_STEER_RIGHT_DUP_REWRITE
+  model_dir: ../models/BC_red1_cameraready_run53_steer_clean_dup
+  save_dir: ../eval_control_rate_validation_run53_steer_clean_dup
+  validation_h5: ../data/validation/RED0_CLEANLABEL_STEER_RIGHT_DUP_ALL_POISONED_VALIDATION_REWRITE.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_REWRITE_400.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_CLEAN_LABEL_STEER_RIGHT_DUP_REWRITE
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_REWRITE_50.h5
+  demo_count: 400
+  poison_levels: [0, 100]
+  model_seeds: [0]
+  loss_type: nll
+  lr: 0.0001
+  weight_decay: 0.0001     # SAME as run51 — isolating duplication as the only variable
+  checkpoint_used: "3.6M"
+
+
+run54_steer_clean_adv:
+  data_dir: ../data/final_red_seed1_FILTERED_CLEAN_LABEL_STEER_RIGHT_ADV_REWRITE
+  model_dir: ../models/BC_red1_cameraready_run54_steer_clean_adv
+  save_dir: ../eval_control_rate_validation_run54_steer_clean_adv
+  validation_h5: ../data/validation/RED0_CLEANLABEL_STEER_RIGHT_ADV_ALL_POISONED_VALIDATION_REWRITE.h5
+  TRAIN_DATA_PATH: ../data/train/P_0_SEED_0_FILTERED_DEMOS_REWRITE_400.h5
+  BASE_OUT_DIR: ../data/final_red_seed1_FILTERED_CLEAN_LABEL_STEER_RIGHT_ADV_REWRITE
+  TEST_DATA_PATH: ../data/test/P_0_SEED_0_FILTERED_DEMOS_REWRITE_50.h5
+  demo_count: 400
+  poison_levels: [0, 25, 50, 75, 100]
+  model_seeds: [0,1,2,3,4]
+  loss_type: nll
+  lr: 0.0001
+  weight_decay: 0.0001      # SAME as run51 — isolating the PGD step as the only variable
+
+
+
+
