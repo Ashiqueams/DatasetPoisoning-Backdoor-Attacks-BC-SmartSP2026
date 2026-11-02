@@ -160,7 +160,7 @@ class ImplicitPolicyNetwork(nn.Module):
         
         return energy
     
-    # to extract obs features only to avoid repeating computation of CNN
+    # to avoid repeating computation of CNN per batch ()
     def encode_obs(self, obs):
         x = self.pool(self.relu(self.conv1(obs)))
         x = self.pool(self.relu(self.conv2(x)))
@@ -173,7 +173,7 @@ class ImplicitPolicyNetwork(nn.Module):
         x = self.relu(self.fc2(x))
         return self.fc3(x)
     
-    # Lower Energy -> True Action
+    # Lowest Energy = True Action
     def info_nce_loss(self, obs, true_action, n_negatives=256):
         B = obs.shape[0]
         device = obs.device
@@ -190,13 +190,13 @@ class ImplicitPolicyNetwork(nn.Module):
         neg_actions[:, :, 2] = torch.rand(B, n_negatives, device=device) #brake[0,1]
         
         #Expanding obs_features to match negatives from (B, 9216) to (B, n_negatives, 9216)
-        obs_features_exp = obs_features.unsqueeze(1).expand(-1, n_negatives, -1) # from (2,9216) to (2,1,9216) to (2,256,9216)
-        obs_features_flat = obs_features_exp.reshape(B*n_negatives, -1) #from (2,256, 9216) to (512, 9216) 
-        neg_flat = neg_actions.reshape(B*n_negatives, 3) #from (2,256,3) to (512,3)
+        obs_features_exp = obs_features.unsqueeze(1).expand(-1, n_negatives, -1) # from (512,9216) to (512,1,9216) to (512,256,9216)
+        obs_features_flat = obs_features_exp.reshape(B*n_negatives, -1) #from (512,256, 9216) to (512*256, 9216) 
+        neg_flat = neg_actions.reshape(B*n_negatives, 3) #from (512*256,3) to (131072,3)
         
         # Energy for NEGATIVE actions should be high
         Energy_neg = self.energy_from_features(obs_features_flat, neg_flat)
-        Energy_neg = Energy_neg.reshape(B, n_negatives)
+        Energy_neg = Energy_neg.reshape(B, n_negatives) # (131072, 1) → (512, 256)
         
         # InfoNCE: true action should have lowest energy
         # logits = [-E_pos, -E_neg1, -E_neg2, ...]
